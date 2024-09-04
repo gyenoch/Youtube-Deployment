@@ -46,15 +46,12 @@ pipeline {
             }
         }
 
-         }
-        stage("Docker Build & Push"){
-            steps{
-                script{
-                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
-                       sh "docker build -t youtube-clone ."
-                       sh "docker tag youtube-clone aakibkhan1212/youtube-clone:latest "
-                       sh "docker push aakibkhan1212/youtube-clone:latest "
-                       sh "docker "
+        stage("Docker Build & Tag") {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {   
+                        sh "docker build -t youtube-clone ."
+                        sh 'docker tag youtube-clone gyenoch/youtube-clone:${BUILD_NUMBER}'
                     }
                 }
             }
@@ -62,79 +59,70 @@ pipeline {
 
         stage('TRIVY Image Scan') {
             steps {
-                sh 'trivy image gyenoch/2048-game:${BUILD_NUMBER} > trivyimage.txt' 
+                sh 'trivy image gyenoch/youtube-clone:${BUILD_NUMBER} > trivyimage.txt' 
             }
         }
 
-        stage('Update Deployment file') {
-            environment {
-                GIT_REPO_NAME = "2048-App-Deployment-with-Ansible-Jenkins"
-                GIT_USER_NAME = "gyenoch"
-            }
+        stage("Docker Push") {
             steps {
-                dir('.') {
-                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_APP')]) {
-                    sh '''
-                        git config user.email "www.gyenoch@gmail.com"
-                        git config user.name "gyenoch"
-                        
-                        # Extract current image tag from deployment.yaml
-                        imageTag=$(grep 'image:\\s*gyenoch/2048-game:' deployment.yaml | sed 's/.*gyenoch\\/2048-game:\\([^ ]*\\)/\\1/')
-                        echo "Current image tag: $imageTag"
-                        
-                        # Replace the old image tag with the new BUILD_NUMBER
-                        sed -i "s|gyenoch/2048-game:$imageTag|gyenoch/2048-game:${BUILD_NUMBER}|" deployment.yaml
-                        
-                        # Commit and push the changes to the GitHub repository
-                        git add deployment.yaml
-                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                        git push https://${GITHUB_APP}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                    '''
+                script {
+                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {   
+                        sh 'docker push gyenoch/youtube-clone:${BUILD_NUMBER}'
                     }
                 }
             }
         }
 
-
-        stage('k8s using ansible') {
+        stage("Remove container") {
             steps {
-                dir('Ansible') {
-                    script {
-                        ansiblePlaybook credentialsId: 'SSH', disableHostKeyChecking: true, installation: 'ansible', inventory: '/etc/ansible/', playbook: 'k8s.yaml'
-                    }
-                } 
+                sh "docker stop youtube-clone || true"
+                sh "docker rm youtube-clone || true"
             }
         }
-    }
 
-    post {
-        always {
-            script {
-                def jobName = env.JOB_NAME 
-                def buildNumber = env.BUILD_NUMBER 
-                def pipelineStatus = currentBuild.result ?: 'UNKNOWN' 
-                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+        stage('Deploy to container') {
+            steps {
+                sh 'docker run -d --name youtube-clone -p 3000:3000 gyenoch/youtube-clone:${BUILD_NUMBER}'
+            }
+        }
 
-                def body = """
-                    <html> <body>
-                    <div style="border: 4px solid ${bannerColor}; padding: 10px;">
-                    <h2>${jobName} - Build ${buildNumber}</h2>
-                    <div style="background-color: ${bannerColor}; padding: 10px;">
-                    <h3 style="color: white;">Pipeline Status: 
-                    ${pipelineStatus.toUpperCase()}</h3>
-                    </div>
-                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
-                    </div>
-                    </body> </html> """
+        stage('Update Deployment file') {
+            environment {
+                GIT_REPO_NAME = "Youtube-Deployment"
+                GIT_USER_NAME = "gyenoch"
+            }
+            steps {
+                dir('.') {
+                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_APP')]) {
+                        sh '''
+                            git config user.email "www.gyenoch@gmail.com"
+                            git config user.name "gyenoch"
+                            
+                            # Extract current image tag from deployment.yaml
+                            imageTag=$(grep 'image:\\s*gyenoch/youtube-clone:' deployment.yml | sed 's/.*gyenoch\\/youtube-clone:\\([^ ]*\\)/\\1/')
+                            echo "Current image tag: $imageTag"
+                            
+                            # Replace the old image tag with the new BUILD_NUMBER
+                            sed -i "s|gyenoch/youtube-clone:$imageTag|gyenoch/youtube-clone:${BUILD_NUMBER}|" deployment.yml
+                            
+                            # Commit and push the changes to the GitHub repository
+                            git add deployment.yml
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                            git push https://${GITHUB_APP}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                        '''
+                    }
+                }
+            }
+        }
 
-                emailext ( 
-                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}", 
-                    body: body, to: 'www.gyenoch@gmail.com', 
-                    from: 'jenkins@example.com', 
-                    replyTo: 'www.gyenoch@gmail.com', 
-                    mimeType: 'text/html', 
-                    attachmentsPattern: 'trivy-image-report.html' 
-                )
+        stage('Deploying YouTube Application') {
+            steps {
+                script {
+                    dir('.') {
+                        sh 'aws eks update-kubeconfig --name EKS_CLOUD --region us-east-1'
+                        sh 'kubectl apply -f deployment.yml'  // --validate=false
+                    }
+                }
             }
         }
     }
