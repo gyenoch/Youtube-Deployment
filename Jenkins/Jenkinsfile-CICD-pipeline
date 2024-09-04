@@ -109,11 +109,23 @@ pipeline {
                 }
             }
         }
-        stage('Deploying YouTube Application') {
+
+        stage('SETUP RBAC') {
             steps {
                 script {
                     dir('.') {
                         sh 'aws eks update-kubeconfig --name EKS_CLOUD --region us-east-1'
+                        sh 'kubectl apply -f jenkins-sa.yml'  // --validate=false
+                        sh 'kubectl apply -f role.yml'
+                        sh 'kubectl apply -f rolebinding.yml'
+                    }
+                }
+            }
+        }
+        stage('Deploying YouTube Application') {
+            steps {
+                script {
+                    dir('.') {
                         sh 'kubectl apply -f deployment.yml --validate=false'
                     }
                 }
