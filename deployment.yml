@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: youtube-app
-          image: gyenoch/youtube-clone:3
+          image: gyenoch/youtube-clone:4
           ports:
             - containerPort: 3000  # Your Node.js application should listen on port 3000
 
