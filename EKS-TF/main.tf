@@ -44,7 +44,7 @@ data "aws_subnet" "public_b" {
 }
 
 resource "aws_eks_cluster" "example" {
-  name     = "EKS_CLOUD"
+  name     = var.eks_name
   role_arn = aws_iam_role.example.arn
 
   vpc_config {
@@ -114,4 +114,8 @@ resource "aws_eks_node_group" "example" {
     aws_iam_role_policy_attachment.example-AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.example-AmazonEC2ContainerRegistryReadOnly,
   ]
+
+  tags = {
+    Name = var.node_group_name
+  }
 }
