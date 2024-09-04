@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout from Git') {
             steps {
-                git branch: 'main', url: 'https://github.com/gyenoch/2048-App-Deployment-with-Ansible-Jenkins.git'
+                git branch: 'main', url: 'https://github.com/gyenoch/Youtube-Deployment.git'
             }
         }
         stage('Initializing Terraform') {
