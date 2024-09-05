@@ -1,4 +1,7 @@
-# Build and Deploy a Modern YouTube Clone Application in React JS with Material UI 5
+[![LinkedIn](https://img.shields.io/badge/Connect%20with%20me%20on-LinkedIn-blue.svg)](https://www.linkedin.com/in/gyenoch/)
+[![Medium](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://medium.com/@www.gyenoch)
+
+# Build and Deploy a Modern YouTube Clone Application in using Jenkins with Slack Integration
 
 ![YouTube](https://i.ibb.co/4R5RkmW/Thumbnail-5.png)
 
