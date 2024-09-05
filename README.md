@@ -5,6 +5,16 @@
 
 ## Build and Deploy a Modern YouTube Clone Application in using Jenkins with Slack Integration
 
+In this project, we will delve into a comprehensive DevOps project that involves building, deploying, and managing a YouTube clone application using a range of modern tools and practices coupled with the integration of Slack notification, providing real-time notifications about the status of the pipeline.
+
+## Getting Started
+To get started with this project, refer to our [comprehensive guide](https://medium.com/@www.gyenoch/deployment-of-youtube-clone-on-kubernetes-cluster-with-slack-integration-f57f8a9dbe5f) that walks you through infrastructure provisioning, CI/CD pipeline configuration, EKS cluster creation, and more.
+
+## Contributing
+We welcome contributions! If you have ideas for enhancements or find any issues, please open a pull request or file an issue.
+
+Happy Coding! 🚀
+
 ![YouTube](https://i.ibb.co/4R5RkmW/Thumbnail-5.png)
 
 ### Showcase your dev skills with practical experience and land the coding career of your dreams
