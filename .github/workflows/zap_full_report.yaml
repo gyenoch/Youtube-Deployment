@@ -58,6 +58,9 @@ jobs:
       - name: Pull ZAP Docker Image
         run: docker pull ghcr.io/zaproxy/zaproxy:latest
 
+      - name: Verify Rule File
+        run: ls -l zap-rules.conf
+      
       # Run OWASP ZAP Baseline Scan with Docker
       - name: Run OWASP ZAP Baseline Scan
         run: |
@@ -65,6 +68,7 @@ jobs:
             -t http://localhost:3000 \
             -r zap_report.html
             -c /zap/wrk/zap-rules.conf
+            -d
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
           RULE_FILE_NAME: "zap-rules.conf"  # Name of the rule file
