@@ -60,7 +60,11 @@ jobs:
 
       - name: Verify Rule File
         run: ls -l zap-rules.conf
-      
+
+      - name: Debug ZAP Container
+        run: |
+          docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest ls -l /zap/wrk
+     
       # Run OWASP ZAP Baseline Scan with Docker
       - name: Run OWASP ZAP Baseline Scan
         run: |
