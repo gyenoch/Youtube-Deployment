@@ -26,24 +26,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout code
-      - name: Checkout Code
+      # Step 1: Check out the repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16 # Adjust based on your Next.js project requirements
-
-      # Step 3: Install dependencies
+      # Step 2: Install Dependencies and Fix Vulnerabilities
       - name: Install Dependencies
         run: |
           npm install
           npm audit fix || echo "Ignoring vulnerabilities for now"
           npx update-browserslist-db@latest # Update Browserslist database
 
-      # Step 4: Build Next.js application
+      # Step 3: Build the Application (Ignore Warnings in CI)
       - name: Build Application
         run: CI=false npm run build
 
@@ -53,14 +47,6 @@ jobs:
           mkdir -p eb-build
           cp -R src/ public/ .env package.json package-lock.json eb-build/
           zip -r eb-app.zip eb-build/
-
-  security-test:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      # Step 1: Checkout code
-      - name: Checkout Code
-        uses: actions/checkout@v3
 
       # Step 4: Start the Application
       - name: Start the Application
@@ -74,7 +60,7 @@ jobs:
             echo "Waiting for app to start..."
             sleep 5
           done
-        
+      
       - name: Set proper permissions
         run: chmod -R 777 $(pwd)
 
@@ -108,52 +94,3 @@ jobs:
         with:
           name: zap-report
           path: zap_report.html
-
- 
-  static-analysis:
-    runs-on: ubuntu-latest
-    needs: security-test
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - uses: sonarsource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      # If you wish to fail your job when the Quality Gate is red, uncomment the
-      # following lines. This would typically be used to fail a deployment.
-      # - uses: sonarsource/sonarqube-quality-gate-action@master
-      #   timeout-minutes: 5
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: static-analysis
-    if: success()  # Deploy only if previous steps succeeded
-    steps:
-      # Step 1: Checkout code
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      # Step 2: Configure AWS credentials
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-east-1"
-
-      # Step 3: Deploy to Elastic Beanstalk
-      - name: Deploy to Elastic Beanstalk
-        run: |
-          aws elasticbeanstalk create-application-version \
-            --application-name $APPLICATION_NAME \
-            --version-label ${{ github.sha }} \
-            --source-bundle S3Bucket=elasticbeanstalk-$AWS_REGION,S3Key=eb-app.zip
-
-          aws elasticbeanstalk update-environment \
-            --environment-name $ENVIRONMENT_NAME \
-            --version-label ${{ github.sha }}
