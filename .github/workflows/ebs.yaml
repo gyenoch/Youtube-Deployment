@@ -19,7 +19,7 @@ env:
 
 jobs:
   build:
-    runs-on: [CI-CD]
+    runs-on: ubuntu-latest
     steps:
       # Step 1: Checkout code
       - name: Checkout Code
@@ -47,7 +47,7 @@ jobs:
           zip -r eb-app.zip eb-build/
 
   static-analysis:
-    runs-on: [CI-CD]
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v2
@@ -65,7 +65,7 @@ jobs:
       #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   security-test:
-    runs-on: [CI-CD]
+    runs-on: ubuntu-latest
     needs: static-analysis
     steps:
       # Step 1: Checkout code
@@ -110,7 +110,7 @@ jobs:
           path: zap_report.html
 
   deploy:
-    runs-on: [CI-CD]
+    runs-on: ubuntu-latest
     needs: security-test
     if: success()  # Deploy only if previous steps succeeded
     steps:
