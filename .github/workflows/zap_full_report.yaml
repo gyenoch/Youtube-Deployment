@@ -40,8 +40,10 @@ jobs:
             echo "Waiting for app to start..."
             sleep 5
           done
+      
+      - name: Set proper permissions
+        run: chmod -R 777 $(pwd)
         
-
       # Run ZAP Baseline Scan
       # - name: Run OWASP ZAP Baseline Scan
       #   uses: zaproxy/action-baseline@v0.6.0
@@ -60,7 +62,7 @@ jobs:
       - name: Run OWASP ZAP Baseline Scan
         run: |
           docker run --rm -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-baseline.py \
-            -t http://localhost:3000 \
+            -t host.docker.internal:3000 \
             -r zap_report.html
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
@@ -71,4 +73,3 @@ jobs:
         with:
           name: zap-report
           path: zap_report.html
-
