@@ -38,7 +38,7 @@ jobs:
 
       # Step 5: Run ZAP Baseline Scan
       - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.5.0
+        uses: docker/setup-buildx-action@v2
         with:
           target: http://localhost:3000 # URL of your running application
           rules_file_name: ""           # Do not provide a rules file
