@@ -8,6 +8,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
 env:
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
