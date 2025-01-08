@@ -34,7 +34,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18 # Adjust based on your Next.js project requirements
+          node-version: 16 # Adjust based on your Next.js project requirements
 
       # Step 3: Install dependencies
       - name: Install Dependencies
@@ -80,11 +80,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Start the application for testing
-      - name: Start Application
+      # Step 4: Start the Application
+      - name: Start the Application
+        run: npm start &
+        env:
+          PORT: 3000 # Ensure the app runs on the expected port
+
+      - name: Wait for Application to Start
         run: |
-          npm run start &
-          sleep 10 # Give the server time to start
+          until curl --silent --fail http://localhost:3000; do
+            echo "Waiting for app to start..."
+            sleep 5
+          done
+        
+      - name: Set proper permissions
+        run: chmod -R 777 $(pwd)
 
       # Pull ZAP Docker Image
       - name: Pull ZAP Docker Image
