@@ -70,8 +70,8 @@ jobs:
         run: |
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-baseline.py \
             -t http://localhost:3000 \
-            -r zap_report.html
-            -c /zap/wrk/zap-rules.conf
+            -r zap_report.html \
+            -c /zap/wrk/zap-rules.conf \
             -d
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
