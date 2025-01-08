@@ -64,8 +64,10 @@ jobs:
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-baseline.py \
             -t http://localhost:3000 \
             -r zap_report.html
+            -c /zap/wrk/$RULE_FILE_NAME
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
+          RULE_FILE_NAME: "zap-rules.conf"  # Name of the rule file
         continue-on-error: true  # This will allow the pipeline to continue even if the scan fails
       
       # Upload ZAP Report as an Artifact
