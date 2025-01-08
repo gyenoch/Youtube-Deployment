@@ -42,7 +42,7 @@ jobs:
         with:
           target: http://localhost:3000 # URL of your running application
           rules_file_name: ""           # Do not provide a rules file
-          docker_name: iniweb/owasp/zap2docker-stable # Change image name here
+          docker_name: owasp/zap2docker-betas # Change image name here
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
 
