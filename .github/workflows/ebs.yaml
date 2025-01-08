@@ -46,7 +46,7 @@ jobs:
       - name: Archive Build
         run: |
           mkdir -p eb-build
-          cp -R .next/ package.json package-lock.json eb-build/
+          cp -R src/ public/ .env package.json package-lock.json eb-build/
           zip -r eb-app.zip eb-build/
 
   static-analysis:
