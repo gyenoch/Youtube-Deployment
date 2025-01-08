@@ -16,7 +16,7 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
-          npm audit fix --force# Fix vulnerabilities automatically
+          npm audit fix --force # Fix vulnerabilities automatically
           npx update-browserslist-db@latest # Update Browserslist database
 
       # Step 3: Build the Application (Ignore Warnings in CI)
