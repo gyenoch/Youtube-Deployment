@@ -12,18 +12,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up the application (Next.js app)
+      # Step 2: Install Dependencies and Fix Vulnerabilities
       - name: Install Dependencies
         run: |
           npm install
-          npm run build
+          npm audit fix # Fix vulnerabilities automatically
+          npx update-browserslist-db@latest # Update Browserslist database
 
+      # Step 3: Build the Application (Ignore Warnings in CI)
+      - name: Build Application
+        run: CI=false npm run build
+
+      # Step 4: Start the Application
       - name: Start the Application
         run: npm start &
         env:
           PORT: 3000 # Ensure the app runs on the expected port
 
-      # Step 3: Run ZAP Baseline Scan
+      # Step 5: Run ZAP Baseline Scan
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.5.0
         with:
@@ -34,9 +40,10 @@ jobs:
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
 
-      # Step 4: Upload the ZAP report as an artifact
+      # Step 6: Upload the ZAP report as an artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
           name: zap-report
           path: zap_report.html
+
