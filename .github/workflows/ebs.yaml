@@ -48,6 +48,13 @@ jobs:
           cp -R src/ public/ .env package.json package-lock.json eb-build/
           zip -r eb-app.zip eb-build/
 
+      # Upload Build Artifact
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: eb-app
+          path: eb-app.zip 
+
       # Step 4: Start the Application
       - name: Start the Application
         run: npm start &
@@ -131,10 +138,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: "us-east-1"
 
+      # Download Build Artifact
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-app    
+
       # Upload Zip file to S3 bucket
       - name: Upload Build to S3
         run: |
-          aws s3 cp eb-app.zip s3://elasticbeanstalk-$AWS_REGION/eb-app.zip
+          aws s3 cp eb-app.zip s3://gyenoch-youtube-bucket/eb-app.zip
         
       # Step 3: Deploy to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
