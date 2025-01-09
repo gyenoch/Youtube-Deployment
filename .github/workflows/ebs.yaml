@@ -158,13 +158,7 @@ jobs:
       - name: Upload Build to S3
         run: |
           aws s3 cp eb-app.zip s3://gyenoch-youtube-bucket/eb-app.zip
-
-      - name: Create Elastic Beanstalk Application
-        run: |
-          aws elasticbeanstalk create-application \
-            --application-name $APPLICATION_NAME \
-            --description "Application for the YouTube clone app"
-
+        
       # Step 3: Create or Update Environment
       - name: Check if Elastic Beanstalk Application Exists
         id: check-application
