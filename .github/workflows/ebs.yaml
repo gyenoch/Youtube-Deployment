@@ -187,6 +187,10 @@ jobs:
               --role-name aws-elasticbeanstalk-ec2-role \
               --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
 
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
+
             aws iam add-role-to-instance-profile \
               --instance-profile-name ElasticBeanstalkInstanceProfile \
               --role-name aws-elasticbeanstalk-ec2-role
@@ -194,28 +198,73 @@ jobs:
             echo "ElasticBeanstalkInstanceProfile already exists."
           fi
 
+      # Step: Create Elastic Beanstalk Service Role
+      - name: Create Elastic Beanstalk Service Role
+        run: |
+          # Check if the service role exists
+          if ! aws iam get-role --role-name aws-elasticbeanstalk-service-role 2>/dev/null; then
+            echo "Creating Elastic Beanstalk Service Role..."
+
+            # Create the service role
+            aws iam create-role --role-name aws-elasticbeanstalk-service-role \
+              --assume-role-policy-document '{
+                "Version": "2012-10-17",
+                "Statement": {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "elasticbeanstalk.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              }'
+
+            # Attach required policies to the service role
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy
+
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
+
+            echo "Service role aws-elasticbeanstalk-service-role created and policies attached."
+          else
+            echo "Elastic Beanstalk Service Role already exists."
+          fi
+
         
-      # Step 3: Check if Elastic Beanstalk Application Exists
+      # Check Application
       - name: Check if Elastic Beanstalk Application Exists
         id: check-application
         run: |
           if aws elasticbeanstalk describe-applications --application-names $APPLICATION_NAME >/dev/null 2>&1; then
             echo "application_exists=true" >> $GITHUB_ENV
+            echo "Application exists: $APPLICATION_NAME"
           else
             echo "application_exists=false" >> $GITHUB_ENV
+            echo "Application does not exist: $APPLICATION_NAME"
           fi
 
-      # Create EBS Application
+      # Create Application
       - name: Create Elastic Beanstalk Application
         if: env.application_exists == 'false'
         run: |
-          aws elasticbeanstalk create-application \
-            --application-name $APPLICATION_NAME \
-            --description "Application for the YouTube clone app"
+          for i in {1..3}; do
+            if aws elasticbeanstalk create-application \
+              --application-name $APPLICATION_NAME \
+              --description "Application for the YouTube clone app"; then
+              echo "Application created successfully."
+              break
+            else
+              echo "Application creation failed. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
 
-      # Check if Environment Exists
+      # Check Environment
       - name: Check if Environment Exists
         id: check-environment
+        if: env.application_exists == 'true'
         run: |
           EXISTS=$(aws elasticbeanstalk describe-environments \
             --application-name $APPLICATION_NAME \
@@ -227,22 +276,20 @@ jobs:
           else
             echo "environment_exists=false" >> $GITHUB_ENV
           fi
-      
-      - name: Debug - Check Environment Exists
-        run: |
-          echo "Environment Exists: ${{ env.environment_exists }}"
-      
-      # Create EBS Environment
+
+      # Create Environment
       - name: Create Environment
         if: env.environment_exists == 'false'
         run: |
+          echo "Waiting for application $APPLICATION_NAME to be ready..."
+          sleep 20
           aws elasticbeanstalk create-environment \
             --application-name $APPLICATION_NAME \
             --environment-name $ENVIRONMENT_NAME \
             --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
             --cname-prefix "youtube-clone-app" \
             --option-settings file://option-settings.json
-      
+
       # Wait for Environment to be Ready
       - name: Wait for Environment to be Ready
         run: |
