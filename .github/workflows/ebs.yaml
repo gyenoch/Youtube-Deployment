@@ -207,10 +207,32 @@ jobs:
             --cname-prefix "youtube-clone-app" \
             --option-settings file://option-settings.json
       
+      # Wait for Environment to be Ready
       - name: Wait for Environment to be Ready
         run: |
-          aws elasticbeanstalk wait environment-ready \
-            --environment-names $ENVIRONMENT_NAME
+          MAX_RETRIES=30  # Maximum number of attempts
+          RETRY_INTERVAL=10  # Time in seconds between retries
+      
+          for ((i=1; i<=MAX_RETRIES; i++)); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --environment-names $ENVIRONMENT_NAME \
+              --query 'Environments[0].Status' \
+              --output text)
+      
+            echo "Current status: $STATUS"
+      
+            if [[ "$STATUS" == "Ready" ]]; then
+              echo "Environment is ready!"
+              exit 0
+            fi
+      
+            echo "Waiting for environment to be ready... ($i/$MAX_RETRIES)"
+            sleep $RETRY_INTERVAL
+          done
+      
+          echo "Environment failed to reach Ready state within the timeout period."
+          exit 1
+          
 
       # Step 3: Deploy to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
