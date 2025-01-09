@@ -1,6 +1,6 @@
 [
     {
-        "Namespace": "aws:autoscaling:launchtemplate",
+        "Namespace": "aws:autoscaling:launchconfiguration",
         "OptionName": "InstanceType",
         "Value": "t3.micro"
     },
