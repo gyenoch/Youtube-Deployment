@@ -20,7 +20,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }} # Update with your AWS region
   APPLICATION_NAME: "youtube-clone-app"
-  ENVIRONMENT_NAME: "demo"
+  ENVIRONMENT_NAME: "youtube-clone-env"
 
 jobs:
   build:
