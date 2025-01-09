@@ -35,16 +35,16 @@
       "Value": "subnet-09394df7a13cfe1de,subnet-048936f360bea5bd3"
     },
     {
-      "Namespace": "aws:autoscaling:launchconfiguration",
-      "OptionName": "IamInstanceProfile",
-      "Value": "aws-elasticbeanstalk-ec2-role"
-    },
+        "Namespace": "aws:autoscaling:launchconfiguration",
+        "OptionName": "IamInstanceProfile",
+        "Value": "ElasticBeanstalkInstanceProfile"
+      },
     {
       "Namespace": "aws:elasticbeanstalk:healthreporting:system",
       "OptionName": "SystemType",
       "Value": "enhanced"
     }
   ]
-  
+
   
   
