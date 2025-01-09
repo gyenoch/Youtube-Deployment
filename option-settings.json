@@ -10,10 +10,10 @@
         "Value": "aws-elasticbeanstalk-service-role"
     },
     {
-        "Namespace": "aws:autoscaling:launchtemplate",
+        "Namespace": "aws:autoscaling:asg",
         "OptionName": "EC2KeyName",
         "Value": "devOps"
-    },
+      },
     {
         "Namespace": "aws:autoscaling:launchtemplate",
         "OptionName": "SecurityGroups",
