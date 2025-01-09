@@ -8,6 +8,42 @@
       "Namespace": "aws:elasticbeanstalk:application:environment",
       "OptionName": "ENV_VAR_NAME",
       "Value": "value"
+    },
+    {
+      "Namespace": "aws:elasticbeanstalk:environment",
+      "OptionName": "ServiceRole",
+      "Value": "aws-elasticbeanstalk-service-role"
+    },
+    {
+      "Namespace": "aws:autoscaling:launchconfiguration",
+      "OptionName": "EC2KeyName",
+      "Value": "devOps"
+    },
+    {
+      "Namespace": "aws:autoscaling:launchconfiguration",
+      "OptionName": "SecurityGroups",
+      "Value": "sg-0358617936644d8a8"
+    },
+    {
+      "Namespace": "aws:ec2:vpc",
+      "OptionName": "VPCId",
+      "Value": "vpc-0869e136934e0faa7"
+    },
+    {
+      "Namespace": "aws:ec2:vpc",
+      "OptionName": "Subnets",
+      "Value": "subnet-09394df7a13cfe1de,subnet-048936f360bea5bd3"
+    },
+    {
+      "Namespace": "aws:autoscaling:launchconfiguration",
+      "OptionName": "IamInstanceProfile",
+      "Value": "aws-elasticbeanstalk-ec2-role"
+    },
+    {
+      "Namespace": "aws:elasticbeanstalk:healthreporting:system",
+      "OptionName": "SystemType",
+      "Value": "enhanced"
     }
   ]
+  
   
