@@ -159,7 +159,7 @@ jobs:
         run: |
           aws s3 cp eb-app.zip s3://gyenoch-youtube-bucket/eb-app.zip
         
-      # Step 3: Create or Update Environment
+      # Step 3: Check if Elastic Beanstalk Application Exists
       - name: Check if Elastic Beanstalk Application Exists
         id: check-application
         run: |
@@ -169,6 +169,7 @@ jobs:
             echo "application_exists=false" >> $GITHUB_ENV
           fi
 
+      # Create EBS Application
       - name: Create Elastic Beanstalk Application
         if: env.application_exists == 'false'
         run: |
@@ -176,18 +177,26 @@ jobs:
             --application-name $APPLICATION_NAME \
             --description "Application for the YouTube clone app"
 
+      # Check if Environment Exists
       - name: Check if Environment Exists
         id: check-environment
         run: |
-          if aws elasticbeanstalk describe-environments \
+          EXISTS=$(aws elasticbeanstalk describe-environments \
+            --application-name $APPLICATION_NAME \
             --environment-names $ENVIRONMENT_NAME \
             --query 'Environments[0].EnvironmentName' \
-            --output text --no-cli-pager >/dev/null 2>&1; then
+            --output text --no-cli-pager 2>/dev/null || echo "NOT_FOUND")
+          if [ "$EXISTS" == "$ENVIRONMENT_NAME" ]; then
             echo "environment_exists=true" >> $GITHUB_ENV
           else
             echo "environment_exists=false" >> $GITHUB_ENV
           fi
-
+      
+      - name: Debug - Check Environment Exists
+        run: |
+          echo "Environment Exists: ${{ env.environment_exists }}"
+      
+      # Create EBS Environment
       - name: Create Environment
         if: env.environment_exists == 'false'
         run: |
@@ -197,6 +206,7 @@ jobs:
             --solution-stack-name "64bit Amazon Linux 2 v5.9.4 running Node.js 16" \
             --cname-prefix "youtube-clone-app" \
             --option-settings file://option-settings.json
+          
 
       # Step 3: Deploy to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
