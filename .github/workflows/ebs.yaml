@@ -206,7 +206,11 @@ jobs:
             --solution-stack-name "64bit Amazon Linux 2 v5.0.2 running Node.js 10" \
             --cname-prefix "youtube-clone-app" \
             --option-settings file://option-settings.json
-          
+      
+      - name: Wait for Environment to be Ready
+        run: |
+          aws elasticbeanstalk wait environment-ready \
+            --environment-names $ENVIRONMENT_NAME
 
       # Step 3: Deploy to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
