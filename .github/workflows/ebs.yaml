@@ -20,7 +20,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }} # Update with your AWS region
   APPLICATION_NAME: "youtube-clone-app"
-  ENVIRONMENT_NAME: "youtube-clone-env"
+  ENVIRONMENT_NAME: "youtube-clone-app-env"
 
 jobs:
   build:
@@ -158,6 +158,44 @@ jobs:
       - name: Upload Build to S3
         run: |
           aws s3 cp eb-app.zip s3://gyenoch-youtube-bucket/eb-app.zip
+
+      # Step 6: Create Elastic Beanstalk Instance Profile
+      - name: Create Elastic Beanstalk Instance Profile
+        run: |
+          # Check if the instance profile exists
+          if ! aws iam get-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile 2>/dev/null; then
+            echo "Creating ElasticBeanstalkInstanceProfile..."
+            aws iam create-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile
+
+            aws iam create-role --role-name aws-elasticbeanstalk-ec2-role \
+              --assume-role-policy-document file://<(cat <<EOF
+              {
+                "Version": "2012-10-17",
+                "Statement": {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              }
+              EOF
+            )
+
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
+
+            aws iam add-role-to-instance-profile \
+              --instance-profile-name ElasticBeanstalkInstanceProfile \
+              --role-name aws-elasticbeanstalk-ec2-role
+          else
+            echo "ElasticBeanstalkInstanceProfile already exists."
+          fi
         
       # Step 3: Check if Elastic Beanstalk Application Exists
       - name: Check if Elastic Beanstalk Application Exists
