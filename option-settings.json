@@ -25,7 +25,7 @@
         "Value": "subnet-09394df7a13cfe1de,subnet-048936f360bea5bd3"
     },
     {
-        "Namespace": "aws:autoscaling:launchtemplate",
+        "Namespace": "aws:autoscaling:launchconfiguration",
         "OptionName": "IamInstanceProfile",
         "Value": "ElasticBeanstalkInstanceProfile"
     },
