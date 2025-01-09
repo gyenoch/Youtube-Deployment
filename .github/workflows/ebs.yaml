@@ -272,58 +272,95 @@ jobs:
             fi
           done
 
-      # Check Environment
+      # Check if Environment Exists
       - name: Check if Environment Exists
         id: check-environment
         if: env.application_exists == 'true'
         run: |
-          EXISTS=$(aws elasticbeanstalk describe-environments \
-            --application-name $APPLICATION_NAME \
-            --environment-names $ENVIRONMENT_NAME \
-            --query 'Environments[0].EnvironmentName' \
-            --output text --no-cli-pager 2>/dev/null || echo "NOT_FOUND")
-          if [ "$EXISTS" == "$ENVIRONMENT_NAME" ]; then
-            echo "environment_exists=true" >> $GITHUB_ENV
-          else
-            echo "environment_exists=false" >> $GITHUB_ENV
-          fi
+          for i in {1..3}; do
+            EXISTS=$(aws elasticbeanstalk describe-environments \
+              --application-name $APPLICATION_NAME \
+              --environment-names $ENVIRONMENT_NAME \
+              --query 'Environments[0].EnvironmentName' \
+              --output text --no-cli-pager 2>/dev/null || echo "NOT_FOUND")
+            if [ "$EXISTS" == "$ENVIRONMENT_NAME" ]; then
+              echo "Environment exists: $ENVIRONMENT_NAME"
+              echo "environment_exists=true" >> $GITHUB_ENV
+              break
+            elif [ "$i" -lt 3 ]; then
+              echo "Environment not found. Retrying in 10 seconds..."
+              sleep 10
+            else
+              echo "Environment does not exist: $ENVIRONMENT_NAME"
+              echo "environment_exists=false" >> $GITHUB_ENV
+            fi
+          done
 
       # Create Environment
       - name: Create Environment
         if: env.environment_exists == 'false'
         run: |
           echo "Waiting for application $APPLICATION_NAME to be ready..."
-          sleep 20
-          aws elasticbeanstalk create-environment \
-            --application-name $APPLICATION_NAME \
-            --environment-name $ENVIRONMENT_NAME \
-            --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
-            --cname-prefix "youtube-clone-app" \
-            --option-settings file://option-settings.json
+          for i in {1..5}; do
+            STATUS=$(aws elasticbeanstalk describe-applications \
+              --application-names $APPLICATION_NAME \
+              --query 'Applications[0].ApplicationName' \
+              --output text --no-cli-pager 2>/dev/null || echo "NOT_READY")
+            if [ "$STATUS" != "$APPLICATION_NAME" ]; then
+              if [ "$i" -lt 5 ]; then
+                echo "Application not ready. Retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "Application failed to initialize. Exiting."
+                exit 1
+              fi
+            else
+              echo "Application is ready."
+              break
+            fi
+          done
+
+          for i in {1..3}; do
+            if aws elasticbeanstalk create-environment \
+              --application-name $APPLICATION_NAME \
+              --environment-name $ENVIRONMENT_NAME \
+              --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
+              --cname-prefix "youtube-clone-app" \
+              --option-settings file://option-settings.json; then
+              echo "Environment created successfully."
+              break
+            else
+              echo "Environment creation failed. Retrying in 20 seconds..."
+              sleep 20
+            fi
+          done
 
       # Wait for Environment to be Ready
       - name: Wait for Environment to be Ready
         run: |
           MAX_RETRIES=30  # Maximum number of attempts
-          RETRY_INTERVAL=10  # Time in seconds between retries
-      
+          RETRY_INTERVAL=20  # Time in seconds between retries
+
           for ((i=1; i<=MAX_RETRIES; i++)); do
             STATUS=$(aws elasticbeanstalk describe-environments \
               --environment-names $ENVIRONMENT_NAME \
               --query 'Environments[0].Status' \
               --output text)
-      
+            
             echo "Current status: $STATUS"
-      
+
             if [[ "$STATUS" == "Ready" ]]; then
               echo "Environment is ready!"
               exit 0
+            elif [[ "$STATUS" == "Terminated" ]]; then
+              echo "Environment creation failed. Status: Terminated."
+              exit 1
             fi
-      
+
             echo "Waiting for environment to be ready... ($i/$MAX_RETRIES)"
             sleep $RETRY_INTERVAL
           done
-      
+
           echo "Environment failed to reach Ready state within the timeout period."
           exit 1
           
