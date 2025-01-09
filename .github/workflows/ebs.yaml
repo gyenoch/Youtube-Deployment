@@ -142,7 +142,17 @@ jobs:
       - name: Download Build Artifact
         uses: actions/download-artifact@v3
         with:
-          name: eb-app    
+          name: eb-app 
+          
+      # Step 4: Verify or Create S3 Bucket
+      - name: Create S3 Bucket
+        run: |
+          if ! aws s3api head-bucket --bucket gyenoch-youtube-bucket 2>/dev/null; then
+            aws s3api create-bucket \
+              --bucket gyenoch-youtube-bucket \
+              --region us-east-1 \
+              --create-bucket-configuration LocationConstraint=us-east-1
+          fi
 
       # Upload Zip file to S3 bucket
       - name: Upload Build to S3
@@ -154,7 +164,46 @@ jobs:
           aws elasticbeanstalk create-application \
             --application-name $APPLICATION_NAME \
             --description "Application for the YouTube clone app"
-        
+
+      # Step 3: Create or Update Environment
+      - name: Check if Elastic Beanstalk Application Exists
+        id: check-application
+        run: |
+          if aws elasticbeanstalk describe-applications --application-names $APPLICATION_NAME >/dev/null 2>&1; then
+            echo "application_exists=true" >> $GITHUB_ENV
+          else
+            echo "application_exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Elastic Beanstalk Application
+        if: env.application_exists == 'false'
+        run: |
+          aws elasticbeanstalk create-application \
+            --application-name $APPLICATION_NAME \
+            --description "Application for the YouTube clone app"
+
+      - name: Check if Environment Exists
+        id: check-environment
+        run: |
+          if aws elasticbeanstalk describe-environments \
+            --environment-names $ENVIRONMENT_NAME \
+            --query 'Environments[0].EnvironmentName' \
+            --output text --no-cli-pager >/dev/null 2>&1; then
+            echo "environment_exists=true" >> $GITHUB_ENV
+          else
+            echo "environment_exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Environment
+        if: env.environment_exists == 'false'
+        run: |
+          aws elasticbeanstalk create-environment \
+            --application-name $APPLICATION_NAME \
+            --environment-name $ENVIRONMENT_NAME \
+            --solution-stack-name "64bit Amazon Linux 2 v5.9.4 running Node.js 16" \
+            --cname-prefix "youtube-clone-app" \
+            --option-settings file://option-settings.json
+
       # Step 3: Deploy to Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
         run: |
