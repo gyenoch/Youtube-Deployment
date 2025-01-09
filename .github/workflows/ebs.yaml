@@ -168,8 +168,7 @@ jobs:
             aws iam create-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile
 
             aws iam create-role --role-name aws-elasticbeanstalk-ec2-role \
-              --assume-role-policy-document file://<(cat <<EOF
-              {
+              --assume-role-policy-document '{
                 "Version": "2012-10-17",
                 "Statement": {
                   "Effect": "Allow",
@@ -178,9 +177,7 @@ jobs:
                   },
                   "Action": "sts:AssumeRole"
                 }
-              }
-              EOF
-            )
+              }'
 
             aws iam attach-role-policy \
               --role-name aws-elasticbeanstalk-ec2-role \
@@ -196,6 +193,7 @@ jobs:
           else
             echo "ElasticBeanstalkInstanceProfile already exists."
           fi
+
         
       # Step 3: Check if Elastic Beanstalk Application Exists
       - name: Check if Elastic Beanstalk Application Exists
