@@ -110,20 +110,46 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      # Step 1: Run SonarQube Scan
       - uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      # If you wish to fail your job when the Quality Gate is red, uncomment the
-      # following lines. This would typically be used to fail a deployment.
+
+      # Step 2: Check SonarQube Quality Gate Status
       - uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      # Show the output from the Quality Gate.
-    # The possible outputs of the `quality-gate-status` variable are `PASSED`, `WARN` or `FAILED`.
-      - name: "Here is SonarQube Quality Gate Status value.."
-        run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+
+      # # Step 3: Log the Quality Gate Status
+      # - name: Log Quality Gate Status
+      #   run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+
+      # Step 4: Fetch SonarQube Analysis Report
+      - name: Fetch SonarQube Report
+        run: |
+          PROJECT_KEY=Youtube # Replace with your SonarQube project key
+          curl -u ${{ secrets.SONAR_TOKEN }}: \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY" \
+            -o sonarqube-report.json
+
+      # Step 5: Convert JSON Report to HTML
+      - name: Convert JSON to HTML
+        run: |
+          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line)</p>"' sonarqube-report.json >> sonarqube-report.html
+          echo "</body></html>" >> sonarqube-report.html
+
+      # Step 6: Upload SonarQube Report as Artifact
+      - name: Upload SonarQube Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: SonarQube-Report
+          path: sonarqube-report.html
+
 
   deploy:
     runs-on: ubuntu-latest
@@ -427,19 +453,6 @@ jobs:
 
           echo "Environment failed to reach Ready state within the timeout period."
           exit 1
-          
-
-      # # Step 3: Deploy to Elastic Beanstalk
-      # - name: Deploy to Elastic Beanstalk
-      #   run: |
-      #     aws elasticbeanstalk create-application-version \
-      #       --application-name $APPLICATION_NAME \
-      #       --version-label ${{ github.sha }} \
-      #       --source-bundle S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip
-
-      #     aws elasticbeanstalk update-environment \
-      #       --environment-name $ENVIRONMENT_NAME \
-      #       --version-label ${{ github.sha }}
 
       # Check Environment Health
       - name: Check Environment Health
@@ -452,4 +465,135 @@ jobs:
             echo "Environment health is not Green: $HEALTH"
             exit 1
           fi
+
+      # Step: Generate Deployment Report
+      - name: Generate Deployment Report
+        run: |
+          echo "Generating deployment report..."
+          cat > ebs-report.html <<EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Deployment Report</title>
+              <style>
+                  body {
+                      font-family: Arial, sans-serif;
+                      margin: 20px;
+                  }
+                  h1 {
+                      color: #2c3e50;
+                  }
+                  table {
+                      border-collapse: collapse;
+                      width: 100%;
+                      margin-top: 20px;
+                  }
+                  th, td {
+                      text-align: left;
+                      padding: 8px;
+                      border: 1px solid #ddd;
+                  }
+                  th {
+                      background-color: #f4f4f4;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>Deployment Report</h1>
+              <table>
+                  <tr>
+                      <th>Field</th>
+                      <th>Details</th>
+                  </tr>
+                  <tr>
+                      <td>Application Name</td>
+                      <td>${{ env.APPLICATION_NAME }}</td>
+                  </tr>
+                  <tr>
+                      <td>Environment Name</td>
+                      <td>${{ env.ENVIRONMENT_NAME }}</td>
+                  </tr>
+                  <tr>
+                      <td>Deployment Version</td>
+                      <td>${{ github.sha }}</td>
+                  </tr>
+                  <tr>
+                      <td>S3 Bucket</td>
+                      <td>gyenoch-youtube-bucket</td>
+                  </tr>
+                  <tr>
+                      <td>Deployment Status</td>
+                      <td>Successful</td>
+                  </tr>
+                  <tr>
+                      <td>Timestamp</td>
+                      <td>$(date)</td>
+                  </tr>
+              </table>
+          </body>
+          </html>EOF
+          echo "Deployment report generated as HTML: ebs-report.html"
+
+      # Step 6: Upload SonarQube Report as Artifact
+      - name: Upload SonarQube Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Deployment-Report
+          path: ebs-report.html
+
           
+  send-reports:
+    needs: [build, static-analysis, deploy]
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Code
+      - uses: actions/checkout@v2
+
+      # Step 2: Download OWASP ZAP, SonarQube, and Deployment Reports
+      - name: Download OWASP ZAP Report
+        uses: actions/download-artifact@v3
+        with:
+          name: zap-report # Replace with the actual artifact name for the ZAP report
+          path: zap-report.html
+
+      - name: Download SonarQube Report
+        uses: actions/download-artifact@v3
+        with:
+          name: sonarqube-report # Replace with the actual artifact name for SonarQube report
+          path: sonarqube-report.html
+
+      - name: Download EBS Deployment Report
+        uses: actions/download-artifact@v3
+        with:
+          name: ebs-report # Replace with the actual artifact name for EBS deployment report
+          path: ebs-report.html
+
+      # Step 3: Send Email with Reports
+      - name: Send Email to Developers
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "CI/CD Reports: OWASP ZAP, SonarQube, EBS Deployment"
+          body: |
+            Hi Team,
+
+            Please find attached the reports for the latest pipeline run:
+
+            - OWASP ZAP Scan Results: Summary and findings.
+            - SonarQube Code Analysis: Code quality and security issues.
+            - EBS Deployment Results: Success/Failure logs.
+
+            Regards,  
+            CI/CD Pipeline
+          to: www.gyenoch@gmail.com,enoch3054@gmail.com
+          attachments: |
+            zap-report.html
+            sonarqube-report.html
+            ebs-report.html
+
