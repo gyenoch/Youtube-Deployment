@@ -553,8 +553,8 @@ jobs:
       - name: Download OWASP ZAP Report
         uses: actions/download-artifact@v3
         with:
-          name: zap-report # Replace with the actual artifact name for the ZAP report
-          path: zap_report.html
+          name: zap-report
+          path: zap-report.html
 
       - name: Download SonarQube Report
         uses: actions/download-artifact@v3
