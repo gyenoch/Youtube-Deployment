@@ -19,8 +19,8 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }} # Update with your AWS region
-  APPLICATION_NAME: "youtube-clone-app"
-  ENVIRONMENT_NAME: "youtube-clone-app-env"
+  APPLICATION_NAME: "react-app"
+  ENVIRONMENT_NAME: "react-app-env"
 
 jobs:
   build:
@@ -126,23 +126,6 @@ jobs:
     needs: static-analysis
     if: success()  # Deploy only if previous steps succeeded
     steps:
-      # - name: Checkout source code
-      #   uses: actions/checkout@v2
-
-      # - name: Generate deployment package
-      #   run: zip -r deploy.zip . -x '*.git*'
-
-      # - name: Deploy to EB
-      #   uses: einaregilsson/beanstalk-deploy@v21
-      #   with:
-      #     aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     application_name: docker-react
-      #     environment_name: Docker-react-env
-      #     version_label: ${{ github.sha }}
-      #     existing_bucket_name: elasticbeanstalk-us-east-1-091008253157
-      #     region: us-east-1
-      #     deployment_package: deploy.zip
       # Step 1: Checkout code
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -155,11 +138,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: "us-east-1"
 
-      # Download Build Artifact
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: eb-app 
+      # Package Deployment
+      - name: Generate deployment package
+        run: zip -r deploy-app.zip * .[^.]*  
           
       # Step 4: Verify or Create S3 Bucket
       - name: Create S3 Bucket
@@ -174,7 +155,7 @@ jobs:
       # Upload Zip file to S3 bucket
       - name: Upload Build to S3
         run: |
-          aws s3 cp eb-app.zip s3://gyenoch-youtube-bucket/eb-app.zip
+          aws s3 cp deploy-app.zip s3://gyenoch-youtube-bucket/deploy-app.zip
 
       # Step 6: Create Elastic Beanstalk Instance Profile
       - name: Create Elastic Beanstalk Instance Profile
@@ -244,6 +225,10 @@ jobs:
               --role-name aws-elasticbeanstalk-service-role \
               --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
 
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService
+
             echo "Service role aws-elasticbeanstalk-service-role created and policies attached."
           else
             echo "Elastic Beanstalk Service Role already exists."
@@ -280,7 +265,7 @@ jobs:
           for i in {1..3}; do
             if aws elasticbeanstalk create-application \
               --application-name "$APPLICATION_NAME" \
-              --description "Application for Youtube-clone-app"; then
+              --description "Application for app"; then
               echo "Application created successfully."
               echo "application_exists=true" >> $GITHUB_ENV
               break
@@ -314,7 +299,7 @@ jobs:
             if aws elasticbeanstalk create-application-version \
               --application-name "$APPLICATION_NAME" \
               --version-label "${{ github.sha }}" \
-              --source-bundle "S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip"; then
+              --source-bundle "S3Bucket=gyenoch-youtube-bucket,S3Key=deploy-app.zip"; then
               echo "Application version created successfully."
               break
             else
@@ -399,7 +384,7 @@ jobs:
             --application-name $APPLICATION_NAME \
             --environment-name $ENVIRONMENT_NAME \
             --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
-            --cname-prefix "youtube-clone-app" \
+            --cname-prefix "react-app" \
             --version-label ${{ github.sha }} \
             --option-settings file://option-settings.json; then
               echo "Environment created successfully."
@@ -440,17 +425,17 @@ jobs:
           exit 1
           
 
-      # Step 3: Deploy to Elastic Beanstalk
-      - name: Deploy to Elastic Beanstalk
-        run: |
-          aws elasticbeanstalk create-application-version \
-            --application-name $APPLICATION_NAME \
-            --version-label ${{ github.sha }} \
-            --source-bundle S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip
+      # # Step 3: Deploy to Elastic Beanstalk
+      # - name: Deploy to Elastic Beanstalk
+      #   run: |
+      #     aws elasticbeanstalk create-application-version \
+      #       --application-name $APPLICATION_NAME \
+      #       --version-label ${{ github.sha }} \
+      #       --source-bundle S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip
 
-          aws elasticbeanstalk update-environment \
-            --environment-name $ENVIRONMENT_NAME \
-            --version-label ${{ github.sha }}
+      #     aws elasticbeanstalk update-environment \
+      #       --environment-name $ENVIRONMENT_NAME \
+      #       --version-label ${{ github.sha }}
 
       # Check Environment Health
       - name: Check Environment Health
