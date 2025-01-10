@@ -572,7 +572,11 @@ jobs:
         run: |
           ls -l zap_report.html
           ls -l sonarqube-report.html
-          ls -l ebs-report.html    
+          ls -l ebs-report.html 
+      
+      # Step 4: Set File Permissions
+      - name: Set File Permissions
+        run: chmod 644 zap_report.html sonarqube-report.html ebs-report.html
 
       # Step 3: Send Email with Reports
       - name: Send Email to Developers
