@@ -279,9 +279,9 @@ jobs:
         run: |
           for i in {1..3}; do
             if aws elasticbeanstalk create-application-version \
-              --application-name $APPLICATION_NAME \
-              --version-label ${{ github.sha }} \
-              --source-bundle S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip"; then
+              --application-name "$APPLICATION_NAME" \
+              --version-label "${{ github.sha }}" \
+              --source-bundle "S3Bucket=gyenoch-youtube-bucket,S3Key=eb-app.zip"; then
               echo "Application created successfully."
               break
             else
@@ -289,6 +289,7 @@ jobs:
               sleep 20
             fi
           done
+
 
       # Step 5: Create Application Version
       - name: Create Elastic Beanstalk Application Version
