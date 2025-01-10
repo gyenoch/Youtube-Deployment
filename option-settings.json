@@ -48,10 +48,5 @@
         "Namespace": "aws:autoscaling:launchconfiguration",
         "OptionName": "EC2KeyName",
         "Value": "devops-shack"
-    },
-    {
-        "Namespace": "aws:autoscaling:launchconfiguration",
-        "OptionName": "BlockDeviceMappings",
-        "Value": "/dev/sdj=:100,/dev/sdh=snap-51eef269,/dev/sdb=ephemeral0"
     }
 ]
