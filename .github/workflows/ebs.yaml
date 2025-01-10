@@ -554,7 +554,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: zap-report
-          path: zap-report.html
+          path: zap_report.html
 
       - name: Download SonarQube Report
         uses: actions/download-artifact@v3
@@ -570,7 +570,7 @@ jobs:
 
       - name: Verify Reports
         run: |
-          ls -l zap-report.html
+          ls -l zap_report.html
           ls -l sonarqube-report.html
           ls -l ebs-report.html    
 
