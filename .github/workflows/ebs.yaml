@@ -568,6 +568,12 @@ jobs:
           name: Deployment-Report
           path: ebs-report.html
 
+      - name: Verify Reports
+        run: |
+          ls -l zap-report.html
+          ls -l sonarqube-report.html
+          ls -l ebs-report.html    
+
       # Step 3: Send Email with Reports
       - name: Send Email to Developers
         uses: dawidd6/action-send-mail@v3
