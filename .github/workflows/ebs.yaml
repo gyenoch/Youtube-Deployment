@@ -559,13 +559,13 @@ jobs:
       - name: Download SonarQube Report
         uses: actions/download-artifact@v3
         with:
-          name: SonarQube-Report # Replace with the actual artifact name for SonarQube report
+          name: SonarQube-Report
           path: sonarqube-report.html
 
       - name: Download EBS Deployment Report
         uses: actions/download-artifact@v3
         with:
-          name: ebs-report # Replace with the actual artifact name for EBS deployment report
+          name: Deployment-Report
           path: ebs-report.html
 
       # Step 3: Send Email with Reports
