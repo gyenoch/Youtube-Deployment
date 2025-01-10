@@ -282,6 +282,7 @@ jobs:
               --application-name "$APPLICATION_NAME" \
               --description "Application for Youtube-clone-app"; then
               echo "Application created successfully."
+              echo "application_exists=true" >> $GITHUB_ENV
               break
             else
               echo "Application creation failed. Retrying in 10 seconds..."
@@ -289,6 +290,22 @@ jobs:
             fi
           done
 
+      # Step 5: Check if Application Version Exists
+      - name: Check if Application Version Exists
+        id: check-application-version
+        run: |
+          RESULT=$(aws elasticbeanstalk describe-application-versions \
+            --application-name "$APPLICATION_NAME" \
+            --version-label "${{ github.sha }}" \
+            --query 'ApplicationVersions[0].VersionLabel' \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+          if [ "$RESULT" == "${{ github.sha }}" ]; then
+            echo "application_version_exists=true" >> $GITHUB_ENV
+            echo "Application version already exists: ${{ github.sha }}"
+          else
+            echo "application_version_exists=false" >> $GITHUB_ENV
+            echo "Application version does not exist: ${{ github.sha }}"
+          fi
 
       # Step 5: Create Application Version
       - name: Create Elastic Beanstalk Application Version
@@ -302,6 +319,28 @@ jobs:
               break
             else
               echo "Application version creation failed. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+
+      # Wait for Application Version to be Processed
+      - name: Wait for Application Version to be Processed
+        run: |
+          for i in {1..10}; do
+            STATUS=$(aws elasticbeanstalk describe-application-versions \
+              --application-name $APPLICATION_NAME \
+              --version-label ${{ github.sha }} \
+              --query 'ApplicationVersions[0].Status' \
+              --output text)
+            echo "Application version status: $STATUS"
+            if [ "$STATUS" == "PROCESSED" ]; then
+              echo "Application version is processed and ready."
+              break
+            elif [ "$i" -eq 10 ]; then
+              echo "Application version failed to process within the timeout period."
+              exit 1
+            else
+              echo "Waiting for application version to be processed... ($i/10)"
               sleep 10
             fi
           done
