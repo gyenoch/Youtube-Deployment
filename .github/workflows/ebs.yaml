@@ -123,11 +123,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # # Step 3: Log the Quality Gate Status
-      # - name: Log Quality Gate Status
-      #   run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
-
-      # Step 4: Fetch SonarQube Analysis Report
+      # Step 3: Fetch SonarQube Analysis Report
       - name: Fetch SonarQube Report
         run: |
           PROJECT_KEY=Youtube # Replace with your SonarQube project key
@@ -533,11 +529,12 @@ jobs:
                   </tr>
               </table>
           </body>
-          </html>EOF
-          echo "Deployment report generated as HTML: ebs-report.html"
+          </html>
+          EOF
+            echo "Deployment report generated as HTML: ebs-report.html"
 
-      # Step 6: Upload SonarQube Report as Artifact
-      - name: Upload SonarQube Report
+      # Step 6: Upload Deployment Report as Artifact
+      - name: Upload Deployment Report
         uses: actions/upload-artifact@v3
         with:
           name: Deployment-Report
@@ -562,7 +559,7 @@ jobs:
       - name: Download SonarQube Report
         uses: actions/download-artifact@v3
         with:
-          name: sonarqube-report # Replace with the actual artifact name for SonarQube report
+          name: SonarQube-Report # Replace with the actual artifact name for SonarQube report
           path: sonarqube-report.html
 
       - name: Download EBS Deployment Report
