@@ -601,7 +601,6 @@ jobs:
             CI/CD Pipeline
           to: www.gyenoch@gmail.com,enoch3054@gmail.com
           attachments: |
-            zap_report.html
             sonarqube-report.html
             ebs-report.html
 
