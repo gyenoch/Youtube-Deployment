@@ -554,19 +554,19 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: zap-report
-          path: zap_report.html
+          path: .
 
       - name: Download SonarQube Report
         uses: actions/download-artifact@v3
         with:
           name: SonarQube-Report
-          path: sonarqube-report.html
+          path: .
 
       - name: Download EBS Deployment Report
         uses: actions/download-artifact@v3
         with:
           name: Deployment-Report
-          path: ebs-report.html
+          path: .
 
       - name: Verify Reports
         run: |
@@ -575,8 +575,8 @@ jobs:
           ls -l ebs-report.html 
       
       # Step 4: Set File Permissions
-      - name: Set File Permissions
-        run: chmod 644 zap_report.html sonarqube-report.html ebs-report.html
+      # - name: Set File Permissions
+      #   run: chmod 644 zap_report.html sonarqube-report.html ebs-report.html
 
       # Step 3: Send Email with Reports
       - name: Send Email to Developers
@@ -601,6 +601,7 @@ jobs:
             CI/CD Pipeline
           to: www.gyenoch@gmail.com,enoch3054@gmail.com
           attachments: |
+            zap_report.html
             sonarqube-report.html
             ebs-report.html
 
