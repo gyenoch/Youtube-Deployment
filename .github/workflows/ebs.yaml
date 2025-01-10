@@ -18,7 +18,7 @@ env:
   ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: ${{ secrets.AWS_REGION }} # Update with your AWS region
+  AWS_REGION: ${{ secrets.AWS_REGION }}
   APPLICATION_NAME: "react-app"
   ENVIRONMENT_NAME: "react-app-env"
 
@@ -35,32 +35,33 @@ jobs:
         run: |
           npm install
           npm audit fix || echo "Ignoring vulnerabilities for now"
-          npx update-browserslist-db@latest # Update Browserslist database
+          npx update-browserslist-db@latest
 
       # Step 3: Build the Application (Ignore Warnings in CI)
       - name: Build Application
         run: CI=false npm run build
 
-      # Step 5: Archive the build for Elastic Beanstalk
+      # Step 4: Archive the build for Elastic Beanstalk
       - name: Archive Build
         run: |
           mkdir -p eb-build
           cp -R src/ public/ .env package.json package-lock.json eb-build/
           zip -r eb-app.zip eb-build/
 
-      # Upload Build Artifact
+      # Step 5: Upload Build Artifact
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
           name: eb-app
           path: eb-app.zip 
 
-      # Step 4: Start the Application
+      # Step 6: Start the Application
       - name: Start the Application
         run: npm start &
         env:
           PORT: 3000 # Ensure the app runs on the expected port
 
+      # Step 7: Wait for Application to Start (Retry for 5 seconds)
       - name: Wait for Application to Start
         run: |
           until curl --silent --fail http://localhost:3000; do
@@ -68,21 +69,20 @@ jobs:
             sleep 5
           done
       
+      # Step 8: Set Proper permissions
       - name: Set proper permissions
         run: chmod -R 777 $(pwd)
 
-      # Pull ZAP Docker Image
+      # Step 9: Pull ZAP Docker Image
       - name: Pull ZAP Docker Image
         run: docker pull ghcr.io/zaproxy/zaproxy:latest
 
-      - name: Verify Rule File
-        run: ls -l zap-rules.conf
-
+      # Step 10: Debug ZAP Container
       - name: Debug ZAP Container
         run: |
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest ls -l /zap/wrk
      
-      # Run OWASP ZAP Baseline Scan with Docker
+      # Step 11: Run OWASP ZAP Baseline Scan with Docker
       - name: Run OWASP ZAP Baseline Scan
         run: |
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-baseline.py \
@@ -95,7 +95,7 @@ jobs:
           RULE_FILE_NAME: "zap-rules.conf"  # Name of the rule file
         #continue-on-error: true  # This will allow the pipeline to continue even if the scan fails
       
-      # Upload ZAP Report as an Artifact
+      # Step 12: Upload ZAP Report as an Artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
@@ -131,7 +131,7 @@ jobs:
             "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY" \
             -o sonarqube-report.json
 
-      # Step 5: Convert JSON Report to HTML
+      # Step 4: Convert JSON Report to HTML
       - name: Convert JSON to HTML
         run: |
           echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
@@ -139,7 +139,7 @@ jobs:
           jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line)</p>"' sonarqube-report.json >> sonarqube-report.html
           echo "</body></html>" >> sonarqube-report.html
 
-      # Step 6: Upload SonarQube Report as Artifact
+      # Step 5: Upload SonarQube Report as Artifact
       - name: Upload SonarQube Report
         uses: actions/upload-artifact@v3
         with:
@@ -164,7 +164,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: "us-east-1"
 
-      # Package Deployment
+      # Step 3: Package Deployment
       - name: Generate deployment package
         run: zip -r deploy-app.zip * .[^.]*  
           
@@ -178,7 +178,7 @@ jobs:
               --create-bucket-configuration LocationConstraint=us-east-1
           fi
 
-      # Upload Zip file to S3 bucket
+      # Step 5: Upload Zip file to S3 bucket
       - name: Upload Build to S3
         run: |
           aws s3 cp deploy-app.zip s3://gyenoch-youtube-bucket/deploy-app.zip
@@ -222,7 +222,7 @@ jobs:
             echo "ElasticBeanstalkInstanceProfile already exists."
           fi
 
-      # Step: Create Elastic Beanstalk Service Role
+      # Step 6: Create Elastic Beanstalk Service Role
       - name: Create Elastic Beanstalk Service Role
         run: |
           # Check if the service role exists
@@ -261,7 +261,7 @@ jobs:
           fi
 
         
-      # Step 3: Check if Elastic Beanstalk Application Exists
+      # Step 7: Check if Elastic Beanstalk Application Exists
       - name: Check if Elastic Beanstalk Application Exists
         id: check-application
         run: |
@@ -284,7 +284,7 @@ jobs:
           done
 
 
-      # Create Application
+      # Step 8: Create Application
       - name: Create Elastic Beanstalk Application
         if: env.application_exists == 'false'
         run: |
@@ -301,7 +301,7 @@ jobs:
             fi
           done
 
-      # Step 5: Check if Application Version Exists
+      # Step 9: Check if Application Version Exists
       - name: Check if Application Version Exists
         id: check-application-version
         run: |
@@ -318,7 +318,7 @@ jobs:
             echo "Application version does not exist: ${{ github.sha }}"
           fi
 
-      # Step 5: Create Application Version
+      # Step 10: Create Application Version
       - name: Create Elastic Beanstalk Application Version
         run: |
           for i in {1..3}; do
@@ -334,7 +334,7 @@ jobs:
             fi
           done
 
-      # Wait for Application Version to be Ready
+      # Step 11: Wait for Application Version to be Ready
       - name: Wait for Application Version to be Ready
         run: |
           for i in {1..20}; do
@@ -357,7 +357,7 @@ jobs:
           done
 
 
-      # Check if Environment Exists
+      # Step 12: Check if Environment Exists
       - name: Check if Environment Exists
         id: check-environment
         if: env.application_exists == 'true'
@@ -381,7 +381,7 @@ jobs:
             fi
           done
 
-      # Create Environment
+      # Step 13: Create Environment
       - name: Create Environment
         if: env.environment_exists == 'false'
         run: |
@@ -421,7 +421,7 @@ jobs:
             fi
           done
 
-      # Wait for Environment to be Ready
+      # Step 14: Wait for Environment to be Ready
       - name: Wait for Environment to be Ready
         run: |
           MAX_RETRIES=30  # Maximum number of attempts
@@ -450,7 +450,7 @@ jobs:
           echo "Environment failed to reach Ready state within the timeout period."
           exit 1
 
-      # Check Environment Health
+      # Step 15: Check Environment Health
       - name: Check Environment Health
         run: |
           HEALTH=$(aws elasticbeanstalk describe-environments \
@@ -462,7 +462,7 @@ jobs:
             exit 1
           fi
 
-      # Step: Generate Deployment Report
+      # Step 16: Generate Deployment Report
       - name: Generate Deployment Report
         run: |
           echo "Generating deployment report..."
@@ -533,7 +533,7 @@ jobs:
           EOF
             echo "Deployment report generated as HTML: ebs-report.html"
 
-      # Step 6: Upload Deployment Report as Artifact
+      # Step 17: Upload Deployment Report as Artifact
       - name: Upload Deployment Report
         uses: actions/upload-artifact@v3
         with:
@@ -568,17 +568,14 @@ jobs:
           name: Deployment-Report
           path: .
 
+      # Step 3: Verify Report Files Existence
       - name: Verify Reports
         run: |
           ls -l zap_report.html
           ls -l sonarqube-report.html
           ls -l ebs-report.html 
-      
-      # Step 4: Set File Permissions
-      # - name: Set File Permissions
-      #   run: chmod 644 zap_report.html sonarqube-report.html ebs-report.html
 
-      # Step 3: Send Email with Reports
+      # Step 4: Send Email with Reports
       - name: Send Email to Developers
         uses: dawidd6/action-send-mail@v3
         with:
@@ -599,7 +596,7 @@ jobs:
 
             Regards,  
             CI/CD Pipeline
-          to: www.gyenoch@gmail.com,enoch3054@gmail.com
+          to: www.gyenoch@gmail.com,enoch3054@gmail.com, mohammeddayan29@gmail.com
           attachments: |
             zap_report.html
             sonarqube-report.html
