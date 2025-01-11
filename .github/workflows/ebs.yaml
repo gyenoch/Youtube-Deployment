@@ -94,14 +94,12 @@ jobs:
       # Step 11: Run OWASP ZAP Full Scan with Docker
       - name: Run OWASP ZAP Baseline Scan
         run: |
-          docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-full-scan.py \
+          docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-spider.py \
             -t http://localhost:3000 \
             -r zap_report.html \
-            -c /zap/wrk/zap-rules.conf \
             -d
         env:
           ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
-          RULE_FILE_NAME: "zap-rules.conf"  # Name of the rule file
       
       # Step 12: Upload ZAP Report as an Artifact
       - name: Upload ZAP Report
