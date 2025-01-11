@@ -47,6 +47,6 @@
     {
         "Namespace": "aws:autoscaling:launchconfiguration",
         "OptionName": "EC2KeyName",
-        "Value": "devops-shack"
+        "Value": "devops-shack"  
     }
 ]
