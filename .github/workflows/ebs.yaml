@@ -103,6 +103,57 @@ jobs:
           name: zap-report
           path: zap_report.html
 
+  static-analysis:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Disable shallow clones for better analysis
+
+      # Step 1: Run SonarQube Scan
+      - uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # Step 2: Check SonarQube Quality Gate Status
+      - uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # Step 3: Fetch SonarQube Analysis Report
+      - name: Fetch SonarQube Report
+        run: |
+          PROJECT_KEY=Youtube
+          curl -u ${{ secrets.SONAR_TOKEN }}: \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+            -o sonarqube-report.json
+
+      # Step 4: Enrich the Report with Rule Details
+      - name: Fetch Rule Descriptions
+        run: |
+          jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+            curl -u ${{ secrets.SONAR_TOKEN }}: \
+              "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
+              -o "rules/$rule.json"
+          done
+
+      # Step 5: Convert JSON Report to HTML
+      - name: Convert JSON to HTML
+        run: |
+          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
+          echo "</body></html>" >> sonarqube-report.html
+
+      # Step 6: Upload SonarQube Report as Artifact
+      - name: Upload SonarQube Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: SonarQube-Report
+          path: sonarqube-report.html
 
   # static-analysis:
   #   runs-on: ubuntu-latest
