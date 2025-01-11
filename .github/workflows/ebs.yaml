@@ -156,502 +156,459 @@ jobs:
           name: SonarQube-Report
           path: sonarqube-report.html
 
-  # static-analysis:
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
-  #     # Step 1: Run SonarQube Scan
-  #     - uses: sonarsource/sonarqube-scan-action@master
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    if: success()  # Deploy only if previous steps succeeded
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-  #     # Step 2: Check SonarQube Quality Gate Status
-  #     - uses: sonarsource/sonarqube-quality-gate-action@master
-  #       timeout-minutes: 5
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # Step 2: Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: "us-east-1"
 
-  #     # Step 3: Fetch SonarQube Analysis Report
-  #     - name: Fetch SonarQube Report
-  #       run: |
-  #         PROJECT_KEY=Youtube # Replace with your SonarQube project key
-  #         curl -u ${{ secrets.SONAR_TOKEN }}: \
-  #           "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY" \
-  #           -o sonarqube-report.json
-
-  #     # Step 4: Convert JSON Report to HTML
-  #     - name: Convert JSON to HTML
-  #       run: |
-  #         echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-  #         echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-  #         jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line)</p>"' sonarqube-report.json >> sonarqube-report.html
-  #         echo "</body></html>" >> sonarqube-report.html
-
-  #     # Step 5: Upload SonarQube Report as Artifact
-  #     - name: Upload SonarQube Report
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: SonarQube-Report
-  #         path: sonarqube-report.html
-
-
-  # deploy:
-  #   runs-on: ubuntu-latest
-  #   needs: static-analysis
-  #   if: success()  # Deploy only if previous steps succeeded
-  #   steps:
-  #     # Step 1: Checkout code
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v3
-
-  #     # Step 2: Configure AWS credentials
-  #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v3
-  #       with:
-  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #         aws-region: "us-east-1"
-
-  #     # Step 3: Package Deployment
-  #     - name: Generate deployment package
-  #       run: zip -r deploy-app.zip * .[^.]*  
+      # Step 3: Package Deployment
+      - name: Generate deployment package
+        run: zip -r deploy-app.zip * .[^.]*  
           
-  #     # Step 4: Verify or Create S3 Bucket
-  #     - name: Create S3 Bucket
-  #       run: |
-  #         if ! aws s3api head-bucket --bucket gyenoch-youtube-bucket 2>/dev/null; then
-  #           aws s3api create-bucket \
-  #             --bucket gyenoch-youtube-bucket \
-  #             --region us-east-1 \
-  #             --create-bucket-configuration LocationConstraint=us-east-1
-  #         fi
+      # Step 4: Verify or Create S3 Bucket
+      - name: Create S3 Bucket
+        run: |
+          if ! aws s3api head-bucket --bucket gyenoch-youtube-bucket 2>/dev/null; then
+            aws s3api create-bucket \
+              --bucket gyenoch-youtube-bucket \
+              --region us-east-1 \
+              --create-bucket-configuration LocationConstraint=us-east-1
+          fi
 
-  #     # Step 5: Upload Zip file to S3 bucket
-  #     - name: Upload Build to S3
-  #       run: |
-  #         aws s3 cp deploy-app.zip s3://gyenoch-youtube-bucket/deploy-app.zip
+      # Step 5: Upload Zip file to S3 bucket
+      - name: Upload Build to S3
+        run: |
+          aws s3 cp deploy-app.zip s3://gyenoch-youtube-bucket/deploy-app.zip
 
-  #     # Step 6: Create Elastic Beanstalk Instance Profile
-  #     - name: Create Elastic Beanstalk Instance Profile
-  #       run: |
-  #         # Check if the instance profile exists
-  #         if ! aws iam get-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile 2>/dev/null; then
-  #           echo "Creating ElasticBeanstalkInstanceProfile..."
-  #           aws iam create-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile
+      # Step 6: Create Elastic Beanstalk Instance Profile
+      - name: Create Elastic Beanstalk Instance Profile
+        run: |
+          # Check if the instance profile exists
+          if ! aws iam get-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile 2>/dev/null; then
+            echo "Creating ElasticBeanstalkInstanceProfile..."
+            aws iam create-instance-profile --instance-profile-name ElasticBeanstalkInstanceProfile
 
-  #           aws iam create-role --role-name aws-elasticbeanstalk-ec2-role \
-  #             --assume-role-policy-document '{
-  #               "Version": "2012-10-17",
-  #               "Statement": {
-  #                 "Effect": "Allow",
-  #                 "Principal": {
-  #                   "Service": "ec2.amazonaws.com"
-  #                 },
-  #                 "Action": "sts:AssumeRole"
-  #               }
-  #             }'
+            aws iam create-role --role-name aws-elasticbeanstalk-ec2-role \
+              --assume-role-policy-document '{
+                "Version": "2012-10-17",
+                "Statement": {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              }'
 
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-ec2-role \
-  #             --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
 
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-ec2-role \
-  #             --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
 
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-ec2-role \
-  #             --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
 
-  #           aws iam add-role-to-instance-profile \
-  #             --instance-profile-name ElasticBeanstalkInstanceProfile \
-  #             --role-name aws-elasticbeanstalk-ec2-role
-  #         else
-  #           echo "ElasticBeanstalkInstanceProfile already exists."
-  #         fi
+            aws iam add-role-to-instance-profile \
+              --instance-profile-name ElasticBeanstalkInstanceProfile \
+              --role-name aws-elasticbeanstalk-ec2-role
+          else
+            echo "ElasticBeanstalkInstanceProfile already exists."
+          fi
 
-  #     # Step 6: Create Elastic Beanstalk Service Role
-  #     - name: Create Elastic Beanstalk Service Role
-  #       run: |
-  #         # Check if the service role exists
-  #         if ! aws iam get-role --role-name aws-elasticbeanstalk-service-role 2>/dev/null; then
-  #           echo "Creating Elastic Beanstalk Service Role..."
+      # Step 6: Create Elastic Beanstalk Service Role
+      - name: Create Elastic Beanstalk Service Role
+        run: |
+          # Check if the service role exists
+          if ! aws iam get-role --role-name aws-elasticbeanstalk-service-role 2>/dev/null; then
+            echo "Creating Elastic Beanstalk Service Role..."
 
-  #           # Create the service role
-  #           aws iam create-role --role-name aws-elasticbeanstalk-service-role \
-  #             --assume-role-policy-document '{
-  #               "Version": "2012-10-17",
-  #               "Statement": {
-  #                 "Effect": "Allow",
-  #                 "Principal": {
-  #                   "Service": "elasticbeanstalk.amazonaws.com"
-  #                 },
-  #                 "Action": "sts:AssumeRole"
-  #               }
-  #             }'
+            # Create the service role
+            aws iam create-role --role-name aws-elasticbeanstalk-service-role \
+              --assume-role-policy-document '{
+                "Version": "2012-10-17",
+                "Statement": {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "elasticbeanstalk.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              }'
 
-  #           # Attach required policies to the service role
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-service-role \
-  #             --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy
+            # Attach required policies to the service role
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy
 
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-service-role \
-  #             --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
 
-  #           aws iam attach-role-policy \
-  #             --role-name aws-elasticbeanstalk-service-role \
-  #             --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-service-role \
+              --policy-arn arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService
 
-  #           echo "Service role aws-elasticbeanstalk-service-role created and policies attached."
-  #         else
-  #           echo "Elastic Beanstalk Service Role already exists."
-  #         fi
+            echo "Service role aws-elasticbeanstalk-service-role created and policies attached."
+          else
+            echo "Elastic Beanstalk Service Role already exists."
+          fi
 
         
-  #     # Step 7: Check if Elastic Beanstalk Application Exists
-  #     - name: Check if Elastic Beanstalk Application Exists
-  #       id: check-application
-  #       run: |
-  #         for i in {1..3}; do
-  #           RESULT=$(aws elasticbeanstalk describe-applications --application-names "$APPLICATION_NAME" --query 'Applications[0].ApplicationName' --output text 2>/dev/null || echo "NOT_FOUND")
-  #           if [ "$RESULT" == "NOT_FOUND" ] || [ "$RESULT" == "None" ]; then
-  #             if [ "$i" -lt 3 ]; then
-  #               echo "Application not found. Retrying in 10 seconds..."
-  #               sleep 10
-  #             else
-  #               echo "application_exists=false" >> $GITHUB_ENV
-  #               echo "Application does not exist: $APPLICATION_NAME"
-  #               break
-  #             fi
-  #           else
-  #             echo "application_exists=true" >> $GITHUB_ENV
-  #             echo "Application exists: $APPLICATION_NAME"
-  #             break
-  #           fi
-  #         done
+      # Step 7: Check if Elastic Beanstalk Application Exists
+      - name: Check if Elastic Beanstalk Application Exists
+        id: check-application
+        run: |
+          for i in {1..3}; do
+            RESULT=$(aws elasticbeanstalk describe-applications --application-names "$APPLICATION_NAME" --query 'Applications[0].ApplicationName' --output text 2>/dev/null || echo "NOT_FOUND")
+            if [ "$RESULT" == "NOT_FOUND" ] || [ "$RESULT" == "None" ]; then
+              if [ "$i" -lt 3 ]; then
+                echo "Application not found. Retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "application_exists=false" >> $GITHUB_ENV
+                echo "Application does not exist: $APPLICATION_NAME"
+                break
+              fi
+            else
+              echo "application_exists=true" >> $GITHUB_ENV
+              echo "Application exists: $APPLICATION_NAME"
+              break
+            fi
+          done
 
 
-  #     # Step 8: Create Application
-  #     - name: Create Elastic Beanstalk Application
-  #       if: env.application_exists == 'false'
-  #       run: |
-  #         for i in {1..3}; do
-  #           if aws elasticbeanstalk create-application \
-  #             --application-name "$APPLICATION_NAME" \
-  #             --description "Application for app"; then
-  #             echo "Application created successfully."
-  #             echo "application_exists=true" >> $GITHUB_ENV
-  #             break
-  #           else
-  #             echo "Application creation failed. Retrying in 10 seconds..."
-  #             sleep 20
-  #           fi
-  #         done
+      # Step 8: Create Application
+      - name: Create Elastic Beanstalk Application
+        if: env.application_exists == 'false'
+        run: |
+          for i in {1..3}; do
+            if aws elasticbeanstalk create-application \
+              --application-name "$APPLICATION_NAME" \
+              --description "Application for app"; then
+              echo "Application created successfully."
+              echo "application_exists=true" >> $GITHUB_ENV
+              break
+            else
+              echo "Application creation failed. Retrying in 10 seconds..."
+              sleep 20
+            fi
+          done
 
-  #     # Step 9: Check if Application Version Exists
-  #     - name: Check if Application Version Exists
-  #       id: check-application-version
-  #       run: |
-  #         RESULT=$(aws elasticbeanstalk describe-application-versions \
-  #           --application-name "$APPLICATION_NAME" \
-  #           --version-label "${{ github.sha }}" \
-  #           --query 'ApplicationVersions[0].VersionLabel' \
-  #           --output text 2>/dev/null || echo "NOT_FOUND")
-  #         if [ "$RESULT" == "${{ github.sha }}" ]; then
-  #           echo "application_version_exists=true" >> $GITHUB_ENV
-  #           echo "Application version already exists: ${{ github.sha }}"
-  #         else
-  #           echo "application_version_exists=false" >> $GITHUB_ENV
-  #           echo "Application version does not exist: ${{ github.sha }}"
-  #         fi
+      # Step 9: Check if Application Version Exists
+      - name: Check if Application Version Exists
+        id: check-application-version
+        run: |
+          RESULT=$(aws elasticbeanstalk describe-application-versions \
+            --application-name "$APPLICATION_NAME" \
+            --version-label "${{ github.sha }}" \
+            --query 'ApplicationVersions[0].VersionLabel' \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+          if [ "$RESULT" == "${{ github.sha }}" ]; then
+            echo "application_version_exists=true" >> $GITHUB_ENV
+            echo "Application version already exists: ${{ github.sha }}"
+          else
+            echo "application_version_exists=false" >> $GITHUB_ENV
+            echo "Application version does not exist: ${{ github.sha }}"
+          fi
 
-  #     # Step 10: Create Application Version
-  #     - name: Create Elastic Beanstalk Application Version
-  #       run: |
-  #         for i in {1..3}; do
-  #           if aws elasticbeanstalk create-application-version \
-  #             --application-name "$APPLICATION_NAME" \
-  #             --version-label "${{ github.sha }}" \
-  #             --source-bundle "S3Bucket=gyenoch-youtube-bucket,S3Key=deploy-app.zip"; then
-  #             echo "Application version created successfully."
-  #             break
-  #           else
-  #             echo "Application version creation failed. Retrying in 10 seconds..."
-  #             sleep 10
-  #           fi
-  #         done
+      # Step 10: Create Application Version
+      - name: Create Elastic Beanstalk Application Version
+        run: |
+          for i in {1..3}; do
+            if aws elasticbeanstalk create-application-version \
+              --application-name "$APPLICATION_NAME" \
+              --version-label "${{ github.sha }}" \
+              --source-bundle "S3Bucket=gyenoch-youtube-bucket,S3Key=deploy-app.zip"; then
+              echo "Application version created successfully."
+              break
+            else
+              echo "Application version creation failed. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
 
-  #     # Step 11: Wait for Application Version to be Ready
-  #     - name: Wait for Application Version to be Ready
-  #       run: |
-  #         for i in {1..20}; do
-  #           STATUS=$(aws elasticbeanstalk describe-application-versions \
-  #             --application-name $APPLICATION_NAME \
-  #             --version-label ${{ github.sha }} \
-  #             --query 'ApplicationVersions[0].Status' \
-  #             --output text)
-  #           echo "Application version status: $STATUS"
-  #           if [ "$STATUS" != "FAILED" ] && [ "$STATUS" != "None" ]; then
-  #             echo "Application version is ready for deployment."
-  #             break
-  #           elif [ "$i" -eq 10 ]; then
-  #             echo "Application version failed to become ready within the timeout period."
-  #             exit 1
-  #           else
-  #             echo "Waiting for application version to be ready... ($i/10)"
-  #             sleep 10
-  #           fi
-  #         done
+      # Step 11: Wait for Application Version to be Ready
+      - name: Wait for Application Version to be Ready
+        run: |
+          for i in {1..20}; do
+            STATUS=$(aws elasticbeanstalk describe-application-versions \
+              --application-name $APPLICATION_NAME \
+              --version-label ${{ github.sha }} \
+              --query 'ApplicationVersions[0].Status' \
+              --output text)
+            echo "Application version status: $STATUS"
+            if [ "$STATUS" != "FAILED" ] && [ "$STATUS" != "None" ]; then
+              echo "Application version is ready for deployment."
+              break
+            elif [ "$i" -eq 10 ]; then
+              echo "Application version failed to become ready within the timeout period."
+              exit 1
+            else
+              echo "Waiting for application version to be ready... ($i/10)"
+              sleep 10
+            fi
+          done
 
 
-  #     # Step 12: Check if Environment Exists
-  #     - name: Check if Environment Exists
-  #       id: check-environment
-  #       if: env.application_exists == 'true'
-  #       run: |
-  #         for i in {1..3}; do
-  #           EXISTS=$(aws elasticbeanstalk describe-environments \
-  #             --application-name $APPLICATION_NAME \
-  #             --environment-names $ENVIRONMENT_NAME \
-  #             --query 'Environments[0].EnvironmentName' \
-  #             --output text --no-cli-pager 2>/dev/null || echo "NOT_FOUND")
-  #           if [ "$EXISTS" == "$ENVIRONMENT_NAME" ]; then
-  #             echo "Environment exists: $ENVIRONMENT_NAME"
-  #             echo "environment_exists=true" >> $GITHUB_ENV
-  #             break
-  #           elif [ "$i" -lt 3 ]; then
-  #             echo "Environment not found. Retrying in 10 seconds..."
-  #             sleep 10
-  #           else
-  #             echo "Environment does not exist: $ENVIRONMENT_NAME"
-  #             echo "environment_exists=false" >> $GITHUB_ENV
-  #           fi
-  #         done
+      # Step 12: Check if Environment Exists
+      - name: Check if Environment Exists
+        id: check-environment
+        if: env.application_exists == 'true'
+        run: |
+          for i in {1..3}; do
+            EXISTS=$(aws elasticbeanstalk describe-environments \
+              --application-name $APPLICATION_NAME \
+              --environment-names $ENVIRONMENT_NAME \
+              --query 'Environments[0].EnvironmentName' \
+              --output text --no-cli-pager 2>/dev/null || echo "NOT_FOUND")
+            if [ "$EXISTS" == "$ENVIRONMENT_NAME" ]; then
+              echo "Environment exists: $ENVIRONMENT_NAME"
+              echo "environment_exists=true" >> $GITHUB_ENV
+              break
+            elif [ "$i" -lt 3 ]; then
+              echo "Environment not found. Retrying in 10 seconds..."
+              sleep 10
+            else
+              echo "Environment does not exist: $ENVIRONMENT_NAME"
+              echo "environment_exists=false" >> $GITHUB_ENV
+            fi
+          done
 
-  #     # Step 13: Create Environment
-  #     - name: Create Environment
-  #       if: env.environment_exists == 'false'
-  #       run: |
-  #         echo "Waiting for application $APPLICATION_NAME to be ready..."
-  #         for i in {1..5}; do
-  #           STATUS=$(aws elasticbeanstalk describe-applications \
-  #             --application-names $APPLICATION_NAME \
-  #             --query 'Applications[0].ApplicationName' \
-  #             --output text --no-cli-pager 2>/dev/null || echo "NOT_READY")
-  #           if [ "$STATUS" != "$APPLICATION_NAME" ]; then
-  #             if [ "$i" -lt 5 ]; then
-  #               echo "Application not ready. Retrying in 10 seconds..."
-  #               sleep 10
-  #             else
-  #               echo "Application failed to initialize. Exiting."
-  #               exit 1
-  #             fi
-  #           else
-  #             echo "Application is ready."
-  #             break
-  #           fi
-  #         done
+      # Step 13: Create Environment
+      - name: Create Environment
+        if: env.environment_exists == 'false'
+        run: |
+          echo "Waiting for application $APPLICATION_NAME to be ready..."
+          for i in {1..5}; do
+            STATUS=$(aws elasticbeanstalk describe-applications \
+              --application-names $APPLICATION_NAME \
+              --query 'Applications[0].ApplicationName' \
+              --output text --no-cli-pager 2>/dev/null || echo "NOT_READY")
+            if [ "$STATUS" != "$APPLICATION_NAME" ]; then
+              if [ "$i" -lt 5 ]; then
+                echo "Application not ready. Retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "Application failed to initialize. Exiting."
+                exit 1
+              fi
+            else
+              echo "Application is ready."
+              break
+            fi
+          done
 
-  #         for i in {1..3}; do
-  #           if aws elasticbeanstalk create-environment \
-  #           --application-name $APPLICATION_NAME \
-  #           --environment-name $ENVIRONMENT_NAME \
-  #           --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
-  #           --cname-prefix "react-app" \
-  #           --version-label ${{ github.sha }} \
-  #           --option-settings file://option-settings.json; then
-  #             echo "Environment created successfully."
-  #             break
-  #           else
-  #             echo "Environment creation failed. Retrying in 20 seconds..."
-  #             sleep 20
-  #           fi
-  #         done
+          for i in {1..3}; do
+            if aws elasticbeanstalk create-environment \
+            --application-name $APPLICATION_NAME \
+            --environment-name $ENVIRONMENT_NAME \
+            --solution-stack-name "64bit Amazon Linux 2 v5.9.10 running Node.js 18" \
+            --cname-prefix "react-app" \
+            --version-label ${{ github.sha }} \
+            --option-settings file://option-settings.json; then
+              echo "Environment created successfully."
+              break
+            else
+              echo "Environment creation failed. Retrying in 20 seconds..."
+              sleep 20
+            fi
+          done
 
-  #     # Step 14: Wait for Environment to be Ready
-  #     - name: Wait for Environment to be Ready
-  #       run: |
-  #         MAX_RETRIES=30  # Maximum number of attempts
-  #         RETRY_INTERVAL=20  # Time in seconds between retries
+      # Step 14: Wait for Environment to be Ready
+      - name: Wait for Environment to be Ready
+        run: |
+          MAX_RETRIES=30  # Maximum number of attempts
+          RETRY_INTERVAL=20  # Time in seconds between retries
 
-  #         for ((i=1; i<=MAX_RETRIES; i++)); do
-  #           STATUS=$(aws elasticbeanstalk describe-environments \
-  #             --environment-names $ENVIRONMENT_NAME \
-  #             --query 'Environments[0].Status' \
-  #             --output text)
+          for ((i=1; i<=MAX_RETRIES; i++)); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --environment-names $ENVIRONMENT_NAME \
+              --query 'Environments[0].Status' \
+              --output text)
             
-  #           echo "Current status: $STATUS"
+            echo "Current status: $STATUS"
 
-  #           if [[ "$STATUS" == "Ready" ]]; then
-  #             echo "Environment is ready!"
-  #             exit 0
-  #           elif [[ "$STATUS" == "Terminated" ]]; then
-  #             echo "Environment creation failed. Status: Terminated."
-  #             exit 1
-  #           fi
+            if [[ "$STATUS" == "Ready" ]]; then
+              echo "Environment is ready!"
+              exit 0
+            elif [[ "$STATUS" == "Terminated" ]]; then
+              echo "Environment creation failed. Status: Terminated."
+              exit 1
+            fi
 
-  #           echo "Waiting for environment to be ready... ($i/$MAX_RETRIES)"
-  #           sleep $RETRY_INTERVAL
-  #         done
+            echo "Waiting for environment to be ready... ($i/$MAX_RETRIES)"
+            sleep $RETRY_INTERVAL
+          done
 
-  #         echo "Environment failed to reach Ready state within the timeout period."
-  #         exit 1
+          echo "Environment failed to reach Ready state within the timeout period."
+          exit 1
 
-  #     # Step 15: Check Environment Health
-  #     - name: Check Environment Health
-  #       run: |
-  #         HEALTH=$(aws elasticbeanstalk describe-environments \
-  #           --application-name $APPLICATION_NAME \
-  #           --environment-name $ENVIRONMENT_NAME \
-  #           --query 'Environments[0].Health' --output text)
-  #         if [[ "$HEALTH" != "Green" ]]; then
-  #           echo "Environment health is not Green: $HEALTH"
-  #           exit 1
-  #         fi
+      # Step 15: Check Environment Health
+      - name: Check Environment Health
+        run: |
+          HEALTH=$(aws elasticbeanstalk describe-environments \
+            --application-name $APPLICATION_NAME \
+            --environment-name $ENVIRONMENT_NAME \
+            --query 'Environments[0].Health' --output text)
+          if [[ "$HEALTH" != "Green" ]]; then
+            echo "Environment health is not Green: $HEALTH"
+            exit 1
+          fi
 
-  #     # Step 16: Generate Deployment Report
-  #     - name: Generate Deployment Report
-  #       run: |
-  #         echo "Generating deployment report..."
-  #         cat > ebs-report.html <<EOF
-  #         <!DOCTYPE html>
-  #         <html lang="en">
-  #         <head>
-  #             <meta charset="UTF-8">
-  #             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  #             <title>Deployment Report</title>
-  #             <style>
-  #                 body {
-  #                     font-family: Arial, sans-serif;
-  #                     margin: 20px;
-  #                 }
-  #                 h1 {
-  #                     color: #2c3e50;
-  #                 }
-  #                 table {
-  #                     border-collapse: collapse;
-  #                     width: 100%;
-  #                     margin-top: 20px;
-  #                 }
-  #                 th, td {
-  #                     text-align: left;
-  #                     padding: 8px;
-  #                     border: 1px solid #ddd;
-  #                 }
-  #                 th {
-  #                     background-color: #f4f4f4;
-  #                 }
-  #             </style>
-  #         </head>
-  #         <body>
-  #             <h1>Deployment Report</h1>
-  #             <table>
-  #                 <tr>
-  #                     <th>Field</th>
-  #                     <th>Details</th>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>Application Name</td>
-  #                     <td>${{ env.APPLICATION_NAME }}</td>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>Environment Name</td>
-  #                     <td>${{ env.ENVIRONMENT_NAME }}</td>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>Deployment Version</td>
-  #                     <td>${{ github.sha }}</td>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>S3 Bucket</td>
-  #                     <td>gyenoch-youtube-bucket</td>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>Deployment Status</td>
-  #                     <td>Successful</td>
-  #                 </tr>
-  #                 <tr>
-  #                     <td>Timestamp</td>
-  #                     <td>$(date)</td>
-  #                 </tr>
-  #             </table>
-  #         </body>
-  #         </html>
-  #         EOF
-  #           echo "Deployment report generated as HTML: ebs-report.html"
+      # Step 16: Generate Deployment Report
+      - name: Generate Deployment Report
+        run: |
+          echo "Generating deployment report..."
+          cat > ebs-report.html <<EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Deployment Report</title>
+              <style>
+                  body {
+                      font-family: Arial, sans-serif;
+                      margin: 20px;
+                  }
+                  h1 {
+                      color: #2c3e50;
+                  }
+                  table {
+                      border-collapse: collapse;
+                      width: 100%;
+                      margin-top: 20px;
+                  }
+                  th, td {
+                      text-align: left;
+                      padding: 8px;
+                      border: 1px solid #ddd;
+                  }
+                  th {
+                      background-color: #f4f4f4;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>Deployment Report</h1>
+              <table>
+                  <tr>
+                      <th>Field</th>
+                      <th>Details</th>
+                  </tr>
+                  <tr>
+                      <td>Application Name</td>
+                      <td>${{ env.APPLICATION_NAME }}</td>
+                  </tr>
+                  <tr>
+                      <td>Environment Name</td>
+                      <td>${{ env.ENVIRONMENT_NAME }}</td>
+                  </tr>
+                  <tr>
+                      <td>Deployment Version</td>
+                      <td>${{ github.sha }}</td>
+                  </tr>
+                  <tr>
+                      <td>S3 Bucket</td>
+                      <td>gyenoch-youtube-bucket</td>
+                  </tr>
+                  <tr>
+                      <td>Deployment Status</td>
+                      <td>Successful</td>
+                  </tr>
+                  <tr>
+                      <td>Timestamp</td>
+                      <td>$(date)</td>
+                  </tr>
+              </table>
+          </body>
+          </html>
+          EOF
+            echo "Deployment report generated as HTML: ebs-report.html"
 
-  #     # Step 17: Upload Deployment Report as Artifact
-  #     - name: Upload Deployment Report
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: Deployment-Report
-  #         path: ebs-report.html
+      # Step 17: Upload Deployment Report as Artifact
+      - name: Upload Deployment Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Deployment-Report
+          path: ebs-report.html
 
           
-  # send-reports:
-  #   needs: [build, static-analysis, deploy]
-  #   runs-on: ubuntu-latest
+  send-reports:
+    needs: [build, static-analysis, deploy]
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     # Step 1: Checkout Code
-  #     - uses: actions/checkout@v2
+    steps:
+      # Step 1: Checkout Code
+      - uses: actions/checkout@v2
 
-  #     # Step 2: Download OWASP ZAP, SonarQube, and Deployment Reports
-  #     - name: Download OWASP ZAP Report
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: zap-report
-  #         path: .
+      # Step 2: Download OWASP ZAP, SonarQube, and Deployment Reports
+      - name: Download OWASP ZAP Report
+        uses: actions/download-artifact@v3
+        with:
+          name: zap-report
+          path: .
 
-  #     - name: Download SonarQube Report
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: SonarQube-Report
-  #         path: .
+      - name: Download SonarQube Report
+        uses: actions/download-artifact@v3
+        with:
+          name: SonarQube-Report
+          path: .
 
-  #     - name: Download EBS Deployment Report
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: Deployment-Report
-  #         path: .
+      - name: Download EBS Deployment Report
+        uses: actions/download-artifact@v3
+        with:
+          name: Deployment-Report
+          path: .
 
-  #     # Step 3: Verify Report Files Existence
-  #     - name: Verify Reports
-  #       run: |
-  #         ls -l zap_report.html
-  #         ls -l sonarqube-report.html
-  #         ls -l ebs-report.html 
+      # Step 3: Verify Report Files Existence
+      - name: Verify Reports
+        run: |
+          ls -l zap_report.html
+          ls -l sonarqube-report.html
+          ls -l ebs-report.html 
 
-  #     # Step 4: Send Email with Reports
-  #     - name: Send Email to Developers
-  #       uses: dawidd6/action-send-mail@v3
-  #       with:
-  #         server_address: smtp.gmail.com
-  #         server_port: 587
-  #         username: ${{ secrets.EMAIL_USERNAME }}
-  #         password: ${{ secrets.EMAIL_PASSWORD }}
-  #         from: ${{ secrets.EMAIL_USERNAME }}
-  #         subject: "CI/CD Reports: OWASP ZAP, SonarQube, EBS Deployment"
-  #         body: |
-  #           Hi Team,
+      # Step 4: Send Email with Reports
+      - name: Send Email to Developers
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          subject: "CI/CD Reports: OWASP ZAP, SonarQube, EBS Deployment"
+          body: |
+            Hi Team,
 
-  #           Please find attached the reports for the latest pipeline run:
+            Please find attached the reports for the latest pipeline run:
 
-  #           - OWASP ZAP Scan Results: Summary and findings.
-  #           - SonarQube Code Analysis: Code quality and security issues.
-  #           - EBS Deployment Results: Success/Failure logs.
+            - OWASP ZAP Scan Results: Summary and findings.
+            - SonarQube Code Analysis: Code quality and security issues.
+            - EBS Deployment Results: Success/Failure logs.
 
-  #           Regards,  
-  #           CI/CD Pipeline
-  #         to: www.gyenoch@gmail.com,enoch3054@gmail.com, mohammeddayan29@gmail.com
-  #         attachments: |
-  #           zap_report.html
-  #           sonarqube-report.html
-  #           ebs-report.html
+            Regards,  
+            CI/CD Pipeline
+          to: www.gyenoch@gmail.com,enoch3054@gmail.com,mohammeddayan29@gmail.com
+          attachments: |
+            zap_report.html
+            sonarqube-report.html
+            ebs-report.html
 
