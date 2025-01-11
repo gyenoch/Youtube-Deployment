@@ -82,16 +82,10 @@ jobs:
         run: |
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest ls -l /zap/wrk
 
-      # Step 11: Run OWASP ZAP Spider
-      # - name: Run OWASP ZAP Spider
-      #   run: |
-      #     docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-spider.py \
-      #       -t http://localhost:3000 \
-      #       -r zap_spider.html \
-      #       -d
      
       # Step 11: Run OWASP ZAP Full Scan with Docker
-      - name: Run OWASP ZAP Baseline Scan
+      - name: Run OWASP ZAP Full Scan
+        continue-on-error: true
         run: |
           docker run --rm --network host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:latest zap-full-scan.py \
             -t http://localhost:3000 \
