@@ -103,63 +103,63 @@ jobs:
           name: zap-report
           path: zap_report.html
 
-  static-analysis:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # Disable shallow clones for better analysis
+  # static-analysis:
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0  # Disable shallow clones for better analysis
 
-      # Step 1: Run SonarQube Scan
-      - uses: sonarsource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  #     # Step 1: Run SonarQube Scan
+  #     - uses: sonarsource/sonarqube-scan-action@master
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      # Step 2: Check SonarQube Quality Gate Status
-      - uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     # Step 2: Check SonarQube Quality Gate Status
+  #     - uses: sonarsource/sonarqube-quality-gate-action@master
+  #       timeout-minutes: 5
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # Step 3: Fetch SonarQube Analysis Report
-      - name: Fetch SonarQube Report
-        run: |
-          PROJECT_KEY=Youtube
-          curl -u ${{ secrets.SONAR_TOKEN }}: \
-            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
-            -o sonarqube-report.json
+  #     # Step 3: Fetch SonarQube Analysis Report
+  #     - name: Fetch SonarQube Report
+  #       run: |
+  #         PROJECT_KEY=Youtube
+  #         curl -u ${{ secrets.SONAR_TOKEN }}: \
+  #           "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+  #           -o sonarqube-report.json
 
-      # Step 4: Enrich the Report with Rule Details
-      - name: Fetch Rule Descriptions
-        run: |
-          mkdir -p rules
-          jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
-            curl -u ${{ secrets.SONAR_TOKEN }}: \
-              "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
-              -o "rules/$rule.json"
-          done
+  #     # Step 4: Enrich the Report with Rule Details
+  #     - name: Fetch Rule Descriptions
+  #       run: |
+  #         mkdir -p rules
+  #         jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+  #           curl -u ${{ secrets.SONAR_TOKEN }}: \
+  #             "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
+  #             -o "rules/$rule.json"
+  #         done
 
-      # Step 5: Convert JSON Report to HTML
-      - name: Convert JSON to HTML
-        run: |
-          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
-          echo "</body></html>" >> sonarqube-report.html
+  #     # Step 5: Convert JSON Report to HTML
+  #     - name: Convert JSON to HTML
+  #       run: |
+  #         echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+  #         echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+  #         jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
+  #         echo "</body></html>" >> sonarqube-report.html
 
-      # Step 6: Upload SonarQube Report as Artifact
-      - name: Upload SonarQube Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: SonarQube-Report
-          path: sonarqube-report.html
+  #     # Step 6: Upload SonarQube Report as Artifact
+  #     - name: Upload SonarQube Report
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: SonarQube-Report
+  #         path: sonarqube-report.html
 
 
   deploy:
     runs-on: ubuntu-latest
-    needs: static-analysis
+    needs: build #static-analysis
     if: success()  # Deploy only if previous steps succeeded
     steps:
       # Step 1: Checkout code
@@ -551,64 +551,64 @@ jobs:
           path: ebs-report.html
 
           
-  send-reports:
-    needs: [build, static-analysis, deploy]
-    runs-on: ubuntu-latest
+  # send-reports:
+  #   needs: [build, static-analysis, deploy]
+  #   runs-on: ubuntu-latest
 
-    steps:
-      # Step 1: Checkout Code
-      - uses: actions/checkout@v2
+  #   steps:
+  #     # Step 1: Checkout Code
+  #     - uses: actions/checkout@v2
 
-      # Step 2: Download OWASP ZAP, SonarQube, and Deployment Reports
-      - name: Download OWASP ZAP Report
-        uses: actions/download-artifact@v3
-        with:
-          name: zap-report
-          path: .
+  #     # Step 2: Download OWASP ZAP, SonarQube, and Deployment Reports
+  #     - name: Download OWASP ZAP Report
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: zap-report
+  #         path: .
 
-      - name: Download SonarQube Report
-        uses: actions/download-artifact@v3
-        with:
-          name: SonarQube-Report
-          path: .
+  #     - name: Download SonarQube Report
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: SonarQube-Report
+  #         path: .
 
-      - name: Download EBS Deployment Report
-        uses: actions/download-artifact@v3
-        with:
-          name: Deployment-Report
-          path: .
+  #     - name: Download EBS Deployment Report
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: Deployment-Report
+  #         path: .
 
-      # Step 3: Verify Report Files Existence
-      - name: Verify Reports
-        run: |
-          ls -l zap_report.html
-          ls -l sonarqube-report.html
-          ls -l ebs-report.html 
+  #     # Step 3: Verify Report Files Existence
+  #     - name: Verify Reports
+  #       run: |
+  #         ls -l zap_report.html
+  #         ls -l sonarqube-report.html
+  #         ls -l ebs-report.html 
 
-      # Step 4: Send Email with Reports
-      - name: Send Email to Developers
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          from: ${{ secrets.EMAIL_USERNAME }}
-          subject: "CI/CD Reports: OWASP ZAP, SonarQube, EBS Deployment"
-          body: |
-            Hi Team,
+  #     # Step 4: Send Email with Reports
+  #     - name: Send Email to Developers
+  #       uses: dawidd6/action-send-mail@v3
+  #       with:
+  #         server_address: smtp.gmail.com
+  #         server_port: 587
+  #         username: ${{ secrets.EMAIL_USERNAME }}
+  #         password: ${{ secrets.EMAIL_PASSWORD }}
+  #         from: ${{ secrets.EMAIL_USERNAME }}
+  #         subject: "CI/CD Reports: OWASP ZAP, SonarQube, EBS Deployment"
+  #         body: |
+  #           Hi Team,
 
-            Please find attached the reports for the latest pipeline run:
+  #           Please find attached the reports for the latest pipeline run:
 
-            - OWASP ZAP Scan Results: Summary and findings.
-            - SonarQube Code Analysis: Code quality and security issues.
-            - EBS Deployment Results: Success/Failure logs.
+  #           - OWASP ZAP Scan Results: Summary and findings.
+  #           - SonarQube Code Analysis: Code quality and security issues.
+  #           - EBS Deployment Results: Success/Failure logs.
 
-            Regards,  
-            CI/CD Pipeline
-          to: www.gyenoch@gmail.com,enoch3054@gmail.com,mohammeddayan29@gmail.com
-          attachments: |
-            zap_report.html
-            sonarqube-report.html
-            ebs-report.html
+  #           Regards,  
+  #           CI/CD Pipeline
+  #         to: www.gyenoch@gmail.com,enoch3054@gmail.com,mohammeddayan29@gmail.com
+  #         attachments: |
+  #           zap_report.html
+  #           sonarqube-report.html
+  #           ebs-report.html
 
