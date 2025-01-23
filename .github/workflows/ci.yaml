@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: npm-audit-report
           path: npm-audit-report.html
@@ -197,7 +197,7 @@ jobs:
 
       - name: Upload Dependency Check Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: owasp-dependency-check-report
             path: dependency-check-report.html
@@ -229,7 +229,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: snyk-report
             path: snyk-report.html
