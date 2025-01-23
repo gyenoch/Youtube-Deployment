@@ -221,7 +221,8 @@ jobs:
         if: always()
         run: |
             if [ -f snyk-report.json ] && [ $(jq -e '.vulnerabilities | length > 0' snyk-report.json) == "true" ]; then
-            snyk-to-html -i snyk-report.json -o snyk-report.html
+                snyk-to-html -i snyk-report.json -o snyk-report.html
+            fi
 
       - name: Upload Snyk Report
         if: always()
