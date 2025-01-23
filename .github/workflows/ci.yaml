@@ -54,21 +54,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Disable shallow clones for better analysis
+            fetch-depth: 0
 
-      # Step 1: Run SonarQube Scan 
       - uses: sonarsource/sonarqube-scan-action@master
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      # Step 2: Check SonarQube Quality Gate Status
       - uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # Step 3: Fetch SonarQube Report
       - name: Fetch SonarQube Report
         if: always()
         run: |
@@ -76,19 +73,23 @@ jobs:
             curl -u ${{ secrets.SONAR_TOKEN }}: \
             "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
             -o sonarqube-report.json
+            if ! jq empty sonarqube-report.json; then
+            echo "Invalid JSON in sonarqube-report.json"
+            exit 1
+            fi
 
-      # Step 4: Enrich the Report with Rule Details
       - name: Fetch Rule Descriptions
         if: always()
         run: |
             mkdir -p rules
             jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
-            curl -u ${{ secrets.SONAR_TOKEN }}: \
+            if [ -n "$rule" ]; then
+                curl -u ${{ secrets.SONAR_TOKEN }}: \
                 "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
-                -o "rules/$rule.json"
+                -o "rules/$rule.json" || echo "{}" > "rules/$rule.json"
+            fi
             done
 
-      # Step 4: Convert JSON to HTML
       - name: Convert JSON to HTML
         if: always()
         run: |
@@ -100,26 +101,26 @@ jobs:
             echo "<html><head><title>SonarQube Report</title></head><body><h1>SonarQube Analysis Report</h1>" > sonarqube-report.html
             jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line)</p>"' sonarqube-report.json >> sonarqube-report.html
             for rule_file in rules/*.json; do
+            if [ -f "$rule_file" ] && [ -s "$rule_file" ]; then
                 rule_key=$(jq -r '.key' "$rule_file")
-                description=$(jq -r '.rule.description' "$rule_file")
+                description=$(jq -r '.rule.description // "No description available"' "$rule_file")
                 sed -i "/<b>Rule:<\/b> $rule_key/ s/<\/p>/ <br/><b>Description:</b> $description<\/p>/" sonarqube-report.html
+            fi
             done
             echo "</body></html>" >> sonarqube-report.html
 
-
-      # Step 6: Upload SonarQube Report as Artifact
       - name: Upload SonarQube Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: SonarQube-Report
-          path: sonarqube-report.html
+            name: SonarQube-Report
+            path: sonarqube-report.html
 
       - name: Create GitHub issue if vulnerabilities are found
         if: failure()
         uses: peter-evans/create-issue-from-file@v5
         with:
-            title: "Sonarqube Quality Gate Failed"
+            title: "SonarQube Quality Gate Failed"
             content-filepath: sonarqube-report.html
 
             
@@ -221,10 +222,11 @@ jobs:
             npm install -g snyk snyk-to-html
 
       - name: Run Snyk scan
+        continue-on-error: true
         env:
             SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-            snyk test --all-projects --severity-threshold=high --json > snyk-report.json || true
+            snyk test --all-projects --severity-threshold=high --json > snyk-report.json
             snyk-to-html -i snyk-report.json -o snyk-report.html
 
       - name: Upload Snyk Report
@@ -256,7 +258,7 @@ jobs:
     needs: [npm-audit, sonarqube-scan, trivy-fs-scan, owasp-dependency-check, snyk-scan] #owasp-dependency-check,
     steps:
       - name: Download all reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: reports
 
