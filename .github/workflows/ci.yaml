@@ -232,6 +232,7 @@ jobs:
             path: snyk-report.html
 
       - name: Generate Issue Content
+        if: always()
         run: |
             if jq -e '.vulnerabilities | length > 0' snyk-report.json > /dev/null; then
             jq -r '.vulnerabilities[] | "- \(.title): Severity \(.severity) in \(.packageName)"' snyk-report.json > issue-content.txt
