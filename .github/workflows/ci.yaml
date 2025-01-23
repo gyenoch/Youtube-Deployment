@@ -210,7 +210,7 @@ jobs:
             npm install -g snyk snyk-to-html
 
       - name: Run Snyk scan
-        continue-on-error: true
+        #continue-on-error: true
         env:
             SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
