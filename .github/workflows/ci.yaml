@@ -1,0 +1,286 @@
+name: Security Scans
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
+  NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  APPLICATION_NAME: "youtube-clone-app"
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  issues: write
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run npm audit #npm audit fix
+        continue-on-error: true
+        run: npm audit --html > npm-audit-report.html
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: npm-audit-report
+          path: npm-audit-report.html
+
+      - name: Create GitHub issue if vulnerabilities are found
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Security issue detected by npm audit"
+          content-filepath: npm-audit-report.html
+
+  sonarqube-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Disable shallow clones for better analysis
+
+      # Step 1: Run SonarQube Scan 
+      - uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # Step 2: Check SonarQube Quality Gate Status
+      - uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # Step 3: Fetch SonarQube Report
+      - name: Fetch SonarQube Report
+        if: always()
+        run: |
+            PROJECT_KEY=Youtube
+            curl -u ${{ secrets.SONAR_TOKEN }}: \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+            -o sonarqube-report.json
+
+      # Step 4: Enrich the Report with Rule Details
+      - name: Fetch Rule Descriptions
+        if: always()
+        run: |
+            mkdir -p rules
+            jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+            curl -u ${{ secrets.SONAR_TOKEN }}: \
+                "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
+                -o "rules/$rule.json"
+            done
+
+      # Step 4: Convert JSON to HTML
+      - name: Convert JSON to HTML
+        if: always()
+        run: |
+            if [ ! -s sonarqube-report.json ] || ! jq '.issues | length > 0' sonarqube-report.json; then
+            echo "No issues detected. Skipping HTML conversion."
+            exit 0
+            fi
+
+            echo "<html><head><title>SonarQube Report</title></head><body><h1>SonarQube Analysis Report</h1>" > sonarqube-report.html
+            jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line)</p>"' sonarqube-report.json >> sonarqube-report.html
+            for rule_file in rules/*.json; do
+                rule_key=$(jq -r '.key' "$rule_file")
+                description=$(jq -r '.rule.description' "$rule_file")
+                sed -i "/<b>Rule:<\/b> $rule_key/ s/<\/p>/ <br/><b>Description:</b> $description<\/p>/" sonarqube-report.html
+            done
+            echo "</body></html>" >> sonarqube-report.html
+
+
+      # Step 6: Upload SonarQube Report as Artifact
+      - name: Upload SonarQube Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SonarQube-Report
+          path: sonarqube-report.html
+
+      - name: Create GitHub issue if vulnerabilities are found
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+            title: "Sonarqube Quality Gate Failed"
+            content-filepath: sonarqube-report.html
+
+            
+  trivy-fs-scan:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Set up Trivy
+          uses: aquasecurity/trivy-action@0.28.0
+          with:
+            scan-type: 'fs'
+            scan-ref: '.'
+
+        - name: Scan for vulnerabilities
+          continue-on-error: true
+          run: |
+            trivy fs \
+            --scanners vuln \
+            --exit-code 1 \
+            --cache-dir /tmp/trivy-cache \
+            --format table \
+            -o trivy-fs-report.html .
+   
+        - name: Upload Trivy Report
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: Trivy-Report
+            path: trivy-fs-report.html
+
+        - name: Create GitHub issue if vulnerabilities are found
+          if: failure()
+          uses: peter-evans/create-issue-from-file@v5
+          with:
+            title: "Trivy FS Vulnerability Scan Failed"
+            content-filepath: trivy-fs-report.html
+
+
+  owasp-dependency-check:
+    runs-on: ubuntu-latest
+    #needs: sonarqube-scan
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+            distribution: 'temurin'
+            java-version: '17' 
+
+      - name: Clean up OWASP Dependency Check Cache
+        run: rm -rf ~/.dependency-check
+
+      - name: Download OWASP Dependency Check
+        run: |
+            wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.0.1/dependency-check-12.0.1-release.zip
+            unzip dependency-check-12.0.1-release.zip
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Run OWASP Dependency Check
+        env:
+            NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+            ./dependency-check/bin/dependency-check.sh \
+            --project "alle-ai-nextjs-project" \
+            --scan . \
+            --format "HTML" \
+            --out dependency-check-report.html \
+            --nvdApiKey $NVD_API_KEY
+
+      - name: Upload Dependency Check Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+            name: owasp-dependency-check-report
+            path: dependency-check-report.html
+
+      - name: Create GitHub issue if vulnerabilities are found
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Vulnerabilities detected by OWASP Dependency Check"
+          content-filepath: dependency-check-report.html
+
+
+  snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Snyk and Snyk-to-HTML
+        run: |
+            npm install -g snyk snyk-to-html
+
+      - name: Run Snyk scan
+        env:
+            SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+            snyk test --all-projects --severity-threshold=high --json > snyk-report.json
+            snyk-to-html -i snyk-report.json -o snyk-report.html
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+            name: snyk-report
+            path: snyk-report.html
+
+      - name: Generate Issue Content
+        run: |
+            jq -r '.vulnerabilities[] | "- \(.title): Severity \(.severity) in \(.packageName)"' snyk-report.json > issue-content.txt
+
+      - name: Create GitHub issue if vulnerabilities are found
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+            title: "Security issue detected by Snyk"
+            content-filepath: issue-content.txt
+
+
+  notify-developers:
+    runs-on: ubuntu-latest
+    needs: [npm-audit, sonarqube-scan, trivy-fs-scan, snyk-scan] #owasp-dependency-check,
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v3
+        with:
+          path: reports
+
+      - name: Compress Reports
+        run: |
+            zip -r reports.zip reports
+
+      # Step 2: Send Email with Reports
+      - name: Send Email to Developers
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          subject: "CI/CD Reports: Security Scan Reports"
+          body: |
+            Hi Team,
+
+            Please find attached the reports for the latest pipeline run:
+
+            - NPM Audit: Summary and findings.
+            - SonarQube Code Analysis: Code quality and security issues.
+            - Synk Code Analysis: Code quality and security issues.
+            - Trivy File Analysis: File vulnerability and security findings
+            - OWASP Dependency Check: Dependency vulnerability and security findings.
+
+            Regards,  
+            CI/CD Pipeline
+          to: mohammeddayan29@gmail.com,www.gyenoch@gmail.com  #,enoch3054@gmail.com,mohammeddayan29@gmail.com
+          attachments: reports.zip
