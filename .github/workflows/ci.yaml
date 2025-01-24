@@ -91,10 +91,8 @@ jobs:
       # Step 5: Convert JSON Report to HTML
       - name: Convert JSON to HTML
         run: |
-          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
-          echo "</body></html>" >> sonarqube-report.html
+          jq -r '.issues[]? | "<p><b>Rule:</b> \( .rule // "N/A" ) <br/><b>Severity:</b> \( .severity // "N/A" ) <br/><b>Message:</b> \( .message // "N/A" ) <br/><b>File:</b> \( .component // "N/A" ) <br/><b>Line:</b> \( .line // "N/A" ) <br/><b>Description:</b> \( .ruleDescription // "N/A" )</p>"' sonarqube-report.json >> sonarqube-report.html
+
 
       # Step 6: Upload SonarQube Report as Artifact
       - name: Upload SonarQube Report
