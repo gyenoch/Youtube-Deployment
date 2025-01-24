@@ -135,7 +135,7 @@ jobs:
           uses: aquasecurity/trivy-action@0.28.0
           with:
             scan-type: 'fs'
-            scan-ref: '.'
+            #scan-ref: '.'
             severity: 'CRITICAL,HIGH'
 
          #[sbom,misconfig,secret,compliance]
@@ -147,7 +147,7 @@ jobs:
             --exit-code 1 \
             --cache-dir /tmp/trivy-cache \
             --format table \
-            -o trivy-fs-report.html 
+            -o trivy-fs-report.html .
    
         - name: Upload Trivy Report
           if: always()
