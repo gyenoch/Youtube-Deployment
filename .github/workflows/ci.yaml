@@ -141,7 +141,7 @@ jobs:
           uses: aquasecurity/trivy-action@0.28.0
           with:
             scan-type: 'fs'
-            scan-ref: '${{ github.workspace }}'
+            scan-ref: '.'
             severity: 'CRITICAL,HIGH'
 
         - name: Clear Trivy Cache
@@ -157,7 +157,6 @@ jobs:
             --cache-dir /tmp/trivy-cache \
             --format table \
             -o trivy-fs-report.html .
-          working-directory: ${{ github.workspace }}
    
         - name: Upload Trivy Report
           if: always()
