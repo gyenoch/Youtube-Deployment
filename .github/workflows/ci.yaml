@@ -70,56 +70,56 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Debug API Response
-        run: |
-          curl -L -u ${{ secrets.SONAR_TOKEN }}: \
-            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500"
-        
-
-      # Step 3: Fetch SonarQube Analysis Report
       - name: Fetch SonarQube Report
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          PROJECT_KEY=Youtube
-          curl -u ${{ secrets.SONAR_TOKEN }} \
-            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
-            -o sonarqube-report.json -v
-
-      - name: Debug JSON Content
-        run: cat sonarqube-report.json
+            PROJECT_KEY=Youtube
+            echo "Fetching issues for project: $PROJECT_KEY"
+            curl -s -u $SONAR_TOKEN: \
+                "$SONAR_HOST_URL/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+                -o sonarqube-report.json
+            
+            # Validate the fetched JSON
+            if ! jq empty sonarqube-report.json > /dev/null 2>&1; then
+                echo "Failed to fetch or parse SonarQube report."
+                exit 1
+            fi
           
 
-      # Step 4: Enrich the Report with Rule Details
-      - name: Fetch Rule Descriptions
-        run: |
-          mkdir -p rules
-          jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
-            curl -u ${{ secrets.SONAR_TOKEN }} \
-              "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
-              -o "rules/$rule.json"
-          done
+    #   # Step 4: Enrich the Report with Rule Details
+    #   - name: Fetch Rule Descriptions
+    #     run: |
+    #       mkdir -p rules
+    #       jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+    #         curl -u ${{ secrets.SONAR_TOKEN }}: \
+    #           "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
+    #           -o "rules/$rule.json"
+    #       done
 
-      # Step 5: Convert JSON Report to HTML
-      - name: Convert JSON to HTML
-        run: |
-          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
-          echo "</body></html>" >> sonarqube-report.html
+    #   # Step 5: Convert JSON Report to HTML
+    #   - name: Convert JSON to HTML
+    #     run: |
+    #       echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+    #       echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+    #       jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
+    #       echo "</body></html>" >> sonarqube-report.html
 
-      # Step 6: Upload SonarQube Report as Artifact
-      - name: Upload SonarQube Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: SonarQube-Report
-          path: sonarqube-report.html
+    #   # Step 6: Upload SonarQube Report as Artifact
+    #   - name: Upload SonarQube Report
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: SonarQube-Report
+    #       path: sonarqube-report.html
 
 
-      - name: Create GitHub issue if vulnerabilities are found
-        if: failure()
-        uses: peter-evans/create-issue-from-file@v5
-        with:
-            title: "SonarQube Quality Gate Failed"
-            content-filepath: sonarqube-report.html
+    #   - name: Create GitHub issue if vulnerabilities are found
+    #     if: failure()
+    #     uses: peter-evans/create-issue-from-file@v5
+    #     with:
+    #         title: "SonarQube Quality Gate Failed"
+    #         content-filepath: sonarqube-report.html
 
             
   trivy-fs-scan:
