@@ -77,7 +77,7 @@ jobs:
         run: |
             PROJECT_KEY=Youtube
             echo "Fetching issues for project: $PROJECT_KEY"
-            curl -s -u :$SONAR_TOKEN \
+            curl -s -u admin:sonar \
                 -H "Accept: application/json" \
                 "$SONAR_HOST_URL/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
                 -o sonarqube-report.json
