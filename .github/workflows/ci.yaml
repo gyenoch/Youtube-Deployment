@@ -79,38 +79,41 @@ jobs:
             -o sonarqube-report.json
           
 
-    #   # Step 4: Enrich the Report with Rule Details
-    #   - name: Fetch Rule Descriptions
-    #     run: |
-    #       mkdir -p rules
-    #       jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
-    #         curl -u ${{ secrets.SONAR_TOKEN }}: \
-    #           "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
-    #           -o "rules/$rule.json"
-    #       done
+      # Step 4: Enrich the Report with Rule Details
+      - name: Fetch Rule Descriptions
+        if: always()
+        run: |
+          mkdir -p rules
+          jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+            curl -u ${{ secrets.SONAR_TOKEN }}: \
+              "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
+              -o "rules/$rule.json"
+          done
 
-    #   # Step 5: Convert JSON Report to HTML
-    #   - name: Convert JSON to HTML
-    #     run: |
-    #       echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-    #       echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-    #       jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
-    #       echo "</body></html>" >> sonarqube-report.html
+      # Step 5: Convert JSON Report to HTML
+      - name: Convert JSON to HTML
+        if: always()
+        run: |
+          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
+          echo "</body></html>" >> sonarqube-report.html
 
-    #   # Step 6: Upload SonarQube Report as Artifact
-    #   - name: Upload SonarQube Report
-    #     uses: actions/upload-artifact@v4
-    #     with:
-    #       name: SonarQube-Report
-    #       path: sonarqube-report.html
+      # Step 6: Upload SonarQube Report as Artifact
+      - name: Upload SonarQube Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SonarQube-Report
+          path: sonarqube-report.html
 
 
-    #   - name: Create GitHub issue if vulnerabilities are found
-    #     if: failure()
-    #     uses: peter-evans/create-issue-from-file@v5
-    #     with:
-    #         title: "SonarQube Quality Gate Failed"
-    #         content-filepath: sonarqube-report.html
+      - name: Create GitHub issue if vulnerabilities are found
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+            title: "SonarQube Quality Gate Failed"
+            content-filepath: sonarqube-report.html
 
             
   trivy-fs-scan:
