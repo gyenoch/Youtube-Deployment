@@ -152,7 +152,7 @@ jobs:
           #continue-on-error: true
           run: |
             trivy fs \
-            --scanners secret \  
+            --scanners vuln \
             --exit-code 1 \
             --cache-dir /tmp/trivy-cache \
             --format table \
