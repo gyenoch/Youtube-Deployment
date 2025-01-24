@@ -72,7 +72,7 @@ jobs:
 
       - name: Debug API Response
         run: |
-          curl -u ${{ secrets.SONAR_TOKEN }}: \
+          curl -L -u ${{ secrets.SONAR_TOKEN }}: \
             "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500"
         
 
@@ -82,10 +82,14 @@ jobs:
           PROJECT_KEY=Youtube
           curl -u ${{ secrets.SONAR_TOKEN }}: \
             "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
-            -o sonarqube-report.json
+            -o sonarqube-report.json -v
 
       - name: Debug JSON Content
         run: cat sonarqube-report.json
+
+      - name: Fetch Available Projects
+        run: | 
+            curl -u ${{ secrets.SONAR_TOKEN }}: "${{ secrets.SONAR_HOST_URL }}/api/projects/search"
           
 
     #   # Step 4: Enrich the Report with Rule Details
