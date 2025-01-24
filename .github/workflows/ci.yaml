@@ -75,7 +75,7 @@ jobs:
         run: |
           PROJECT_KEY=Youtube
           curl -u ${{ secrets.SONAR_TOKEN }}: \
-            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+            "${{ secrets.SONAR_HOST_URL }}api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
             -o sonarqube-report.json
           
 
