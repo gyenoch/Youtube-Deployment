@@ -70,23 +70,13 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+        # Step 3: Fetch SonarQube Analysis Report
       - name: Fetch SonarQube Report
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-            PROJECT_KEY=Youtube
-            echo "Fetching issues for project: $PROJECT_KEY"
-            curl -s -u admin:sonar \
-                -H "Accept: application/json" \
-                "$SONAR_HOST_URL/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
-                -o sonarqube-report.json
-            
-            # Validate the fetched JSON
-            if ! jq empty sonarqube-report.json > /dev/null 2>&1; then
-                echo "Failed to fetch or parse SonarQube report."
-                exit 1
-            fi
+          PROJECT_KEY=Youtube
+          curl -u ${{ secrets.SONAR_TOKEN }}: \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=$PROJECT_KEY&ps=500" \
+            -o sonarqube-report.json
           
 
     #   # Step 4: Enrich the Report with Rule Details
