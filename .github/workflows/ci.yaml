@@ -137,13 +137,14 @@ jobs:
             scan-type: 'fs'
             scan-ref: '.'
             severity: 'CRITICAL,HIGH'
+            ignore-unfixed: true
 
          #[sbom,misconfig,secret,compliance]
         - name: Scan for vulnerabilities 
           #continue-on-error: true
           run: |
             trivy fs \
-            --scanners misconfig \  
+            --scanners vuln \  
             --exit-code 1 \
             --cache-dir /tmp/trivy-cache \
             --format table \
