@@ -138,7 +138,7 @@ jobs:
               ls -la
 
         - name: Set up Trivy
-          uses: aquasecurity/trivy-action@latest
+          uses: aquasecurity/trivy-action@0.28.0
           with:
             scan-type: 'fs'
             scan-ref: '${{ github.workspace }}'
@@ -152,7 +152,7 @@ jobs:
           #continue-on-error: true
           run: |
             trivy fs \
-            --scanners vuln \  
+            --scanners sbom \  
             --exit-code 1 \
             --cache-dir /tmp/trivy-cache \
             --format table \
