@@ -157,6 +157,7 @@ jobs:
             --cache-dir /tmp/trivy-cache \
             --format table \
             -o trivy-fs-report.html .
+          working-directory: ${{ github.workspace }}
    
         - name: Upload Trivy Report
           if: always()
