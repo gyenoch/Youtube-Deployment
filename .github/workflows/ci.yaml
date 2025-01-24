@@ -154,7 +154,6 @@ jobs:
             trivy fs \
             --scanners vuln \  
             --exit-code 1 \
-            --cache-dir /tmp/trivy-cache \
             --format table \
             -o trivy-fs-report.html .
           working-directory: ${{ github.workspace }}
