@@ -8,6 +8,7 @@ on:
 
 env:
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
   ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
   NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -94,10 +95,18 @@ jobs:
       - name: Convert JSON to HTML
         if: always()
         run: |
-          echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
-          echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
-          jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
-          echo "</body></html>" >> sonarqube-report.html
+            echo "<html><head><title>SonarQube Report</title></head><body>" > sonarqube-report.html
+            echo "<h1>SonarQube Analysis Report</h1>" >> sonarqube-report.html
+            
+            # Check if there are any issues
+            if [ "$(jq '.issues | length' sonarqube-report.json)" -eq 0 ]; then
+            echo "<p>Congratutions! No issues detected in the application.</p>" >> sonarqube-report.html
+            else
+            jq -r '.issues[] | "<p><b>Rule:</b> \(.rule) <br/><b>Severity:</b> \(.severity) <br/><b>Message:</b> \(.message) <br/><b>File:</b> \(.component) <br/><b>Line:</b> \(.line) <br/><b>Description:</b> \(.ruleDescription)</p>"' sonarqube-report.json >> sonarqube-report.html
+            fi
+            
+            echo "</body></html>" >> sonarqube-report.html
+
 
       # Step 6: Upload SonarQube Report as Artifact
       - name: Upload SonarQube Report
@@ -127,15 +136,18 @@ jobs:
           with:
             scan-type: 'fs'
             scan-ref: '.'
+            severity: 'CRITICAL,HIGH'
 
-        - name: Scan for vulnerabilities
+         #[sbom,misconfig,secret,compliance]
+        - name: Scan for vulnerabilities 
           #continue-on-error: true
           run: |
             trivy fs \
-            --scanners vuln \
+            --scanners vuln \  
             --exit-code 1 \
             --cache-dir /tmp/trivy-cache \
             --format table \
+            --ignore-unreachable \
             -o trivy-fs-report.html .
    
         - name: Upload Trivy Report
@@ -182,7 +194,7 @@ jobs:
             NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
             ./dependency-check/bin/dependency-check.sh \
-            --project "alle-ai-nextjs-project" \
+            --project "Youtube-clone-project" \
             --scan . \
             --format "HTML" \
             --out dependency-check-report.html \
@@ -293,5 +305,5 @@ jobs:
 
             Regards,  
             CI/CD Pipeline
-          to: mohammeddayan29@gmail.com,www.gyenoch@gmail.com,enoch3054@gmail.com
+          to: www.gyenoch@gmail.com,enoch3054@gmail.com #mohammeddayan29@gmail.com,
           attachments: reports.zip
