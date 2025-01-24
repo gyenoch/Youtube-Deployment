@@ -82,7 +82,7 @@ jobs:
       - name: Fetch Rule Descriptions
         run: |
           mkdir -p rules
-          jq -r '.issues[].rule' sonarqube-report.json | sort | uniq | while read -r rule; do
+          jq -r '.issues[]?.rule' sonarqube-report.json | sort | uniq | while read -r rule; do
             curl -u ${{ secrets.SONAR_TOKEN }}: \
               "${{ secrets.SONAR_HOST_URL }}/api/rules/show?key=$rule" \
               -o "rules/$rule.json"
